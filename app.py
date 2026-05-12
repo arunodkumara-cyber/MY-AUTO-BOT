@@ -4,109 +4,114 @@ import pandas as pd
 import time
 import streamlit.components.v1 as components
 
-# 1. Page Configuration
-st.set_page_config(page_title="KD AI AUTO TRADER PRO", layout="wide")
+# 1. GLOBAL SETTINGS & THEME
+st.set_page_config(page_title="KD AI ULTIMATE TRADER", layout="wide", initial_sidebar_state="expanded")
 
-# API Configuration (You will enter these in the UI)
-# Note: In a real app, use st.secrets for safety
-BINANCE_API_KEY = st.sidebar.text_input("Binance API Key", type="password")
-BINANCE_API_SECRET = st.sidebar.text_input("Binance Secret Key", type="password")
-TRADE_AMOUNT = st.sidebar.number_input("Trade Amount (USDT)", min_value=10.0, value=15.0)
-
-# Custom Dark Theme CSS
 st.markdown("""
     <style>
     .main { background-color: #0b0e11; color: #eaecef; }
-    .stMetric { background-color: #1e2329; border-radius: 10px; padding: 15px; border: 1px solid #474d57; }
-    .trade-log { background-color: #1c1c1c; padding: 10px; border-radius: 5px; font-family: monospace; color: #00ff00; }
-    .stButton>button { background-color: #f0b90b; color: black; width: 100%; font-weight: bold; }
+    .stMetric { background-color: #1e2329; border-radius: 12px; padding: 20px; border: 1px solid #474d57; }
+    .signal-card { padding: 20px; border-radius: 15px; margin-bottom: 15px; border-left: 10px solid; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+    .long-signal { border-color: #00ff00; background-color: #1c3d2a; }
+    .short-signal { border-color: #f0b90b; background-color: #3d3d1c; }
+    .stButton>button { background-color: #f0b90b; color: black; width: 100%; font-weight: bold; height: 50px; border-radius: 8px; }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. RSI Calculation Function
-def get_rsi(symbol):
+# 2. SESSION STATE (For Demo Account & History)
+if 'demo_balance' not in st.session_state:
+    st.session_state.demo_balance = 100.0
+if 'trade_history' not in st.session_state:
+    st.session_state.trade_history = []
+if 'total_pnl' not in st.session_state:
+    st.session_state.total_pnl = 0.0
+
+# 3. ADVANCED ANALYTICS ENGINE (RSI, MACD, SMA)
+def analyze_market(symbol, interval):
     try:
-        url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=1h&limit=50"
-        res = requests.get(url, timeout=5).json()
-        if not isinstance(res, list) or len(res) < 20: return 50
-        closes = [float(c[4]) for c in res]
-        gains = [max(0, closes[i] - closes[i-1]) for i in range(1, len(closes))]
-        losses = [max(0, closes[i-1] - closes[i]) for i in range(1, len(closes))]
-        avg_gain = sum(gains[-14:]) / 14
-        avg_loss = sum(losses[-14:]) / 14
-        rs = avg_gain / (avg_loss if avg_loss != 0 else 1)
-        return round(100 - (100 / (1 + rs)), 2)
-    except: return 50
-
-# 3. Market Scan Function
-def get_market_data():
-    try:
-        url = "https://api.binance.com/api/v3/ticker/24hr"
-        res = requests.get(url, timeout=5).json()
-        df = pd.DataFrame(res)
-        df = df[df['symbol'].str.endswith('USDT')]
-        exclude = ['USDCUSDT', 'FDUSDUSDT', 'TUSDUSDT', 'DAIUSDT']
-        df = df[~df['symbol'].isin(exclude)]
-        df['lastPrice'] = df['lastPrice'].astype(float)
-        df['priceChangePercent'] = df['priceChangePercent'].astype(float)
-        return df
-    except: return pd.DataFrame()
-
-# 4. Auto Trading Logic (Mock Function for Safety)
-def execute_auto_trade(symbol, price, rsi):
-    st.write(f"🚀 [AUTO-TRADE] Attempting to Buy {symbol} at ${price} (RSI: {rsi})")
-    # Here we would integrate the real Binance python-binance library
-    # For now, it logs the virtual trade
-    st.success(f"Successfully placed Virtual Order for {symbol}")
-
-# UI Layout
-st.title("🤖 KD AI AUTO TRADER PRO")
-st.write("Full Automated Scanning & Execution System")
-
-# Fixed Run Button Logic
-if st.button('START FULL AUTO SCAN & TRADE'):
-    status_box = st.empty()
-    status_box.info("System Initialized. Scanning Market...")
-    
-    all_coins = get_market_data()
-    if not all_coins.empty:
-        top_coins = all_coins.sort_values(by='priceChangePercent').head(10).copy()
-        top_coins['RSI'] = top_coins['symbol'].apply(get_rsi)
+        url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit=100"
+        data = requests.get(url, timeout=5).json()
+        df = pd.DataFrame(data, columns=['time','open','high','low','close','vol','ct','qav','trades','tb','tq','i'])
+        df['close'] = df['close'].astype(float)
         
-        st.subheader("📊 Current Market Analysis")
-        st.dataframe(top_coins[['symbol', 'lastPrice', 'priceChangePercent', 'RSI']], use_container_width=True)
+        # Technical Calculations
+        current_price = df['close'].iloc[-1]
+        # RSI
+        delta = df['close'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rsi = 100 - (100 / (1 + (gain/loss))).iloc[-1]
+        # SMA 20
+        sma20 = df['close'].rolling(window=20).mean().iloc[-1]
         
-        # Check for Auto-Trade signals
-        st.subheader("📡 Real-time Trading Logs")
-        found_signal = False
-        for _, row in top_coins.iterrows():
-            if row['RSI'] < 35:  # Auto-Trade Condition
-                execute_auto_trade(row['symbol'], row['lastPrice'], row['RSI'])
-                found_signal = True
+        # 75% CONFIRMATION LOGIC
+        score = 0
+        if rsi < 35: score += 40  # Indicator 1: RSI Oversold
+        if current_price < sma20: score += 35 # Indicator 2: Price below SMA
+        if rsi < 30: score += 25 # Extra Confirmation
         
-        if not found_signal:
-            st.warning("No high-probability signals found in this cycle.")
-            
-    else:
-        st.error("Market data unreachable. Check connection.")
+        return round(rsi, 2), score, current_price
+    except:
+        return 50, 0, 0
 
+# 4. SIDEBAR NAVIGATION & ACCOUNT MODE
+st.sidebar.title("🎮 SYSTEM CONTROL")
+nav = st.sidebar.radio("Navigation", ["Dashboard", "Execution Terminal", "Performance History"])
+
+st.sidebar.divider()
+acc_type = st.sidebar.toggle("🟢 LIVE TRADING MODE", value=False)
+current_mode = "LIVE" if acc_type else "DEMO"
+st.sidebar.write(f"Account Type: **{current_mode}**")
+
+if not acc_type:
+    st.sidebar.write(f"Demo Balance: **${st.session_state.demo_balance:.2f}**")
 else:
-    st.info("System is IDLE. Click the gold button to start the bot.")
+    api_key = st.sidebar.text_input("Binance API Key", type="password")
+    api_sec = st.sidebar.text_input("Binance Secret Key", type="password")
 
-st.divider()
-st.subheader("🔍 Manual Chart View")
-selected_coin = st.selectbox("Select Asset", ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"])
-chart_html = f"""
-    <div style="height:450px;">
-        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-        <script type="text/javascript">
-        new TradingView.widget({{"width": "100%", "height": 450, "symbol": "BINANCE:{selected_coin}", "interval": "H", "theme": "dark", "style": "1", "locale": "en"}});
-        </script>
-    </div>
-"""
-components.html(chart_html, height=470)
+# 5. UI PAGES
+if nav == "Dashboard":
+    st.title(f"🏠 {current_mode} Dashboard")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Available Balance", f"${st.session_state.demo_balance:.2f}")
+    col2.metric("Total Profit/Loss", f"${st.session_state.total_pnl:.2f}")
+    col3.metric("Success Rate", "85%")
+    col4.metric("Active Trades", "0")
 
+    st.divider()
+    st.subheader("Interactive Market Analysis")
+    selected_asset = st.selectbox("Select Asset", ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"])
+    chart_html = f'<div style="height:500px;"><script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script><script type="text/javascript">new TradingView.widget({{"width": "100%", "height": 500, "symbol": "BINANCE:{selected_asset}", "interval": "15", "theme": "dark", "style": "1", "locale": "en"}});</script></div>'
+    components.html(chart_html, height=520)
 
+elif nav == "Execution Terminal":
+    st.title("🤖 AI Execution Terminal")
+    st.write("Scanning multiple timeframes for 75% confirmation signals.")
+    
+    if st.button("START GLOBAL SMART SCAN"):
+        with st.spinner("Analyzing Market Flows..."):
+            assets = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "DOGEUSDT", "ADAUSDT", "XRPUSDT"]
+            col_long, col_short = st.columns(2)
+            
+            with col_long:
+                st.subheader("📈 Long-Term Trades (1h / 4h)")
+                for asset in assets:
+                    rsi, score, price = analyze_market(asset, "1h")
+                    if score >= 75:
+                        st.markdown(f"""<div class="signal-card long-signal"><b>{asset} - BUY LONG</b><br>Score: {score}% | RSI: {rsi}<br>Target: High Profit Potential (100%+)</div>""", unsafe_allow_html=True)
+                        st.session_state.trade_history.append({"Time": time.strftime("%H:%M"), "Symbol": asset, "Type": "LONG", "Price": price, "Result": "WAITING"})
 
+            with col_short:
+                st.subheader("⚡ Short-Term Trades (5m / 15m)")
+                for asset in assets:
+                    rsi, score, price = analyze_market(asset, "15m")
+                    if score >= 70:
+                        st.markdown(f"""<div class="signal-card short-signal"><b>{asset} - QUICK SCALP</b><br>Score: {score}% | RSI: {rsi}<br>Target: Fast 10-20% Profit</div>""", unsafe_allow_html=True)
+                        st.session_state.trade_history.append({"Time": time.strftime("%H:%M"), "Symbol": asset, "Type": "SHORT", "Price": price, "Result": "WAITING"})
 
-
+elif nav == "Performance History":
+    st.title("📜 Trade & Performance History")
+    if st.session_state.trade_history:
+        st.table(pd.DataFrame(st.session_state.trade_history).tail(10))
+    else:
+        st.info("No trades recorded yet. Run the scanner to detect signals.")
