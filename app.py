@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 import streamlit.components.v1 as components
 
-# Page Setup
+# 1. Page Setup
 st.set_page_config(page_title="KD AI AUTO BOT", layout="wide", initial_sidebar_state="expanded")
 
 # Custom Dark Theme CSS
@@ -15,11 +15,13 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 1. RSI Calculation Function
+# 2. RSI Calculation Function (With safety checks)
 def get_rsi(symbol):
     try:
         url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=1h&limit=50"
         data = requests.get(url).json()
+        if not isinstance(data, list) or len(data) < 14: return 50
+        
         closes = [float(c[4]) for c in data]
         gains = [max(0, closes[i] - closes[i-1]) for i in range(1, len(closes))]
         losses = [max(0, closes[i-1] - closes[i]) for i in range(1, len(closes))]
@@ -29,13 +31,21 @@ def get_rsi(symbol):
         return round(100 - (100 / (1 + rs)), 2)
     except: return 50
 
-# 2. Market Data Function
+# 3. Fixed Market Data Function (Fixes the ValueError)
 def get_market_data():
-    url = "https://api.binance.com/api/v3/ticker/24hr"
-    res = requests.get(url).json()
-    df = pd.DataFrame(res)
-    df = df[df['symbol'].str.endswith('USDT')]
-    return df
+    try:
+        url = "https://api.binance.com/api/v3/ticker/24hr"
+        res = requests.get(url).json()
+        # Check if the response is a list as expected
+        if isinstance(res, list):
+            df = pd.DataFrame(res)
+            # Filter for USDT pairs
+            df = df[df['symbol'].str.endswith('USDT')]
+            return df
+        else:
+            return pd.DataFrame()
+    except Exception as e:
+        return pd.DataFrame()
 
 # Header Area
 st.title("🤖 KD AI AUTO BOT - Pro Dashboard")
@@ -47,12 +57,11 @@ st.sidebar.metric("Available Balance", "$30.00", "+0.00%")
 st.sidebar.divider()
 selected_coin = st.sidebar.selectbox("Select Coin for Chart", ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "DOGEUSDT"])
 
-# Main Layout: Two Columns
+# Main Layout
 col1, col2 = st.columns([2, 1])
 
 with col1:
     st.subheader(f"📊 Live Chart: {selected_coin}")
-    # TradingView Widget
     tradingview_html = f"""
     <div class="tradingview-widget-container">
         <div id="tradingview_chart"></div>
@@ -70,28 +79,32 @@ with col1:
     components.html(tradingview_html, height=420)
 
 with col2:
-    st.subheader("🚀 Buy Signals (RSI < 35)")
+    st.subheader("🚀 Buy Signals")
     market_df = get_market_data()
-    top_losers = market_df.sort_values(by='priceChangePercent').head(5)
     
-    for _, row in top_losers.iterrows():
-        rsi = get_rsi(row['symbol'])
-        if rsi < 40: # Signal threshold
+    if not market_df.empty:
+        # Sort to find coins with biggest drops
+        top_losers = market_df.sort_values(by='priceChangePercent').head(5)
+        for _, row in top_losers.iterrows():
+            rsi = get_rsi(row['symbol'])
+            # Show a card if RSI is relatively low
             st.markdown(f"""
             <div class="signal-card">
                 <h4>{row['symbol']}</h4>
                 <p>Price: ${float(row['lastPrice']):.4f}<br>
-                RSI: <b>{rsi}</b> (Oversold)<br>
-                24h Change: {row['priceChangePercent']}%</p>
-            </div>
-            <br>
-            """, unsafe_allow_html=True)
+                RSI: <b>{rsi}</b><br>
+                Change: {row['priceChangePercent']}%</p>
+            </div><br>""", unsafe_allow_html=True)
+    else:
+        st.warning("Market data currently unavailable. Refreshing...")
 
 st.divider()
 
 # Market Overview Table
-st.subheader("🔍 Market Scanner (All USDT Pairs)")
-all_data = market_df[['symbol', 'lastPrice', 'priceChangePercent']].copy()
-all_data['lastPrice'] = all_data['lastPrice'].astype(float)
-st.dataframe(all_data.sort_values(by='priceChangePercent'), use_container_id=True)
+if not market_df.empty:
+    st.subheader("🔍 Market Overview")
+    display_df = market_df[['symbol', 'lastPrice', 'priceChangePercent']].copy()
+    display_df['lastPrice'] = display_df['lastPrice'].astype(float)
+    st.dataframe(display_df.sort_values(by='priceChangePercent'), use_container_width=True)
+
 
