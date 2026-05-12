@@ -1,3 +1,22 @@
-requests
-streamlit
-pandas
+# Script to generate the requirements.txt file for KD AI System
+
+libraries = [
+    "streamlit",
+    "pandas",
+    "numpy",
+    "plotly",
+    "requests"
+]
+
+def create_requirements_file():
+    try:
+        with open("requirements.txt", "w") as f:
+            for lib in libraries:
+                f.write(lib + "\n")
+        print("✅ Success: 'requirements.txt' has been created successfully!")
+    except Exception as e:
+        print(f"❌ Error: {e}")
+
+if __name__ == "__main__":
+    create_requirements_file()
+
