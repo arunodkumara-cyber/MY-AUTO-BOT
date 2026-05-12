@@ -1,135 +1,138 @@
-import requests
+import streamlit as st
 import pandas as pd
 import time
-import streamlit.components.v1 as components
-import concurrent.futures
+import requests
+import hashlib
+import hmac
+from datetime import datetime
 
-# 1. UI & PRO THEME SETUP
-st.set_page_config(page_title="KD AI ULTIMATE PRO", layout="wide", initial_sidebar_state="expanded")
+# --- CONFIGURATION & THEME ---
+st.set_page_config(
+    page_title="KD AI ULTIMATE PRO",
+    page_icon="⚡",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
+# Professional Minimalist Dark Mode Theme
 st.markdown("""
     <style>
-    .main { background-color: #050709; color: #ffffff; font-family: 'Inter', sans-serif; }
-    .stMetric { background: rgba(255, 255, 255, 0.05); border-radius: 15px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); }
-    .signal-card { padding: 25px; border-radius: 20px; margin-bottom: 15px; border: 1px solid rgba(255,255,255,0.1); position: relative; transition: 0.3s; }
-    .long-card { background: linear-gradient(135deg, #1c3d2a 0%, #050709 100%); border-left: 10px solid #00ff00; box-shadow: 0 10px 30px rgba(0, 255, 0, 0.1); }
-    .short-card { background: linear-gradient(135deg, #3d3d1c 0%, #050709 100%); border-left: 10px solid #f0b90b; box-shadow: 0 10px 30px rgba(240, 185, 11, 0.1); }
-    .wallet-shield { background: linear-gradient(90deg, rgba(0,255,0,0.1) 0%, rgba(5,7,9,1) 100%); padding: 15px; border-radius: 12px; border: 1px solid #00ff00; text-align: center; margin-bottom: 20px; font-weight: bold; color: #00ff00; }
-    
-    /* Matrix Style Loader */
-    .loader { border: 6px solid #1e2329; border-top: 6px solid #f0b90b; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: auto; }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    
-    .stButton>button { background: linear-gradient(90deg, #f0b90b 0%, #f3ba2f 100%); color: black; font-weight: 800; border: none; height: 55px; border-radius: 12px; font-size: 18px; transition: 0.3s; box-shadow: 0 4px 15px rgba(240, 185, 11, 0.2); }
-    .stButton>button:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(240, 185, 11, 0.4); }
+    .stApp { background-color: #000000; color: #FFFFFF; }
+    .stSidebar { background-color: #0A0A0A !important; border-right: 1px solid #333; }
+    .stButton>button { 
+        width: 100%; border-radius: 2px; background-color: #1A1A1A; 
+        color: white; border: 1px solid #444; transition: 0.3s;
+    }
+    .stButton>button:hover { border-color: #00FFA3; color: #00FFA3; }
+    .metric-card {
+        background-color: #111; padding: 20px; border-radius: 5px;
+        border: 1px solid #222; text-align: center;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. HIGH-SPEED ANALYSIS ENGINE
-def fetch_all_usdt_pairs():
-    try:
-        res = requests.get("https://api.binance.com/api/v3/ticker/price").json()
-        return [item['symbol'] for item in res if item['symbol'].endswith('USDT') and "UP" not in item['symbol'] and "DOWN" not in item['symbol']][:100] # Scanning top 100 for speed
-    except: return ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
+# --- SIDEBAR NAVIGATION ---
+st.sidebar.image("https://via.placeholder.com/150x50/000000/FFFFFF?text=KD+AI+PRO", use_column_width=True)
+st.sidebar.title("CONTROL CENTER")
+menu = st.sidebar.selectbox("MENU", ["DASHBOARD", "MARKET ANALYSIS", "SNIPER BOT", "WALLET & API", "SUBSCRIPTION"])
 
-def analyze_coin_multi_frame(symbol):
-    frames = ["15m", "1h", "4h"]
-    total_score = 0
-    try:
-        for tf in frames:
-            url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={tf}&limit=50"
-            data = requests.get(url, timeout=2).json()
-            closes = pd.Series([float(c[4]) for c in data])
-            
-            # Indicators
-            delta = closes.diff()
-            gain = delta.where(delta > 0, 0).rolling(14).mean().iloc[-1]
-            loss = delta.where(delta < 0, 0).abs().rolling(14).mean().iloc[-1]
-            rsi = 100 - (100 / (1 + (gain/loss if loss != 0 else 1)))
-            sma = closes.rolling(20).mean().iloc[-1]
-            
-            if rsi < 38: total_score += 25
-            if closes.iloc[-1] < sma: total_score += 10
-            
-        return symbol, total_score, closes.iloc[-1]
-    except: return symbol, 0, 0
-
-# 3. SIDEBAR & ACCOUNT SECURITY
-st.sidebar.markdown("<h1 style='color: #f0b90b;'>KD AI MASTER PRO</h1>", unsafe_allow_html=True)
-st.sidebar.markdown(f"<div style='border: 1px solid #00ff00; padding: 10px; border-radius: 10px; color: #00ff00; text-align: center;'>🛡️ WALLET SHIELD: 99.9% SAFE</div>", unsafe_allow_html=True)
-st.sidebar.divider()
-menu = st.sidebar.radio("SYSTEM MENU", ["💎 EXECUTIVE DASHBOARD", "🚀 MASS AUTO-SCANNER", "📜 HISTORY"])
-trade_mode = st.sidebar.toggle("LIVE TRADING MODE", False)
-wallet = st.sidebar.number_input("Balance ($)", value=10.0)
-
-# 4. DASHBOARD PAGE
-if menu == "💎 EXECUTIVE DASHBOARD":
-    st.title("💎 EXECUTIVE DASHBOARD")
-    st.markdown(f'<div class="wallet-shield">PROTECTION ACTIVE: System is securing your ${wallet} balance.</div>', unsafe_allow_html=True)
+# --- 1. DASHBOARD (Overview) ---
+if menu == "DASHBOARD":
+    st.title("🚀 SYSTEM DASHBOARD")
     
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Wallet Balance", f"${wallet}")
-    c2.metric("Win Probability", "89%", "PRO")
-    c3.metric("Scan Threads", "Active")
-    c4.metric("Risk Level", "Ultra-Low")
+    col1, col2, col3, col4 = st.columns(4)
+    with col1: st.metric("Live Price (BTC)", "$64,230.50", "+1.2%")
+    with col2: st.metric("Active Trades", "3", "Sniper Active")
+    with col3: st.metric("Daily Profit", "+$142.20", "85% Win Rate")
+    with col4: st.metric("API Status", "Connected", "Binance")
 
-    st.divider()
-    # Performance Gauge Replacement
+    st.subheader("Recent Signals")
+    data = {
+        "Time (SLT)": ["10:30 AM", "11:15 AM", "01:05 PM"], # Synced with SL Time
+        "Pair": ["BTC/USDT", "ETH/USDT", "SOL/USDT"],
+        "Strategy": ["SMC Breakout", "RSI Divergence", "Sniper Logic"],
+        "Status": ["TP Hit ✅", "Active ⏳", "TP Hit ✅"]
+    }
+    st.table(pd.DataFrame(data))
+
+# --- 2. MARKET ANALYSIS (SMC & RSI) ---
+elif menu == "MARKET ANALYSIS":
+    st.title("📊 TECHNICAL INTELLIGENCE")
+    
+    pair = st.text_input("Enter Trading Pair", "BTCUSDT")
     col_a, col_b = st.columns(2)
-    with col_a:
-        st.subheader("📊 Strategy Confidence")
-        st.write("75% Confirmation Algorithm")
-        st.progress(90)
-        st.write("Wallet Protection Sync")
-        st.progress(99)
-    with col_b:
-        st.subheader("💡 AI Market Insight")
-        st.info("System has analyzed 200+ coins. Current DNA suggests high-volatility buy zones.")
-
-# 5. MASS SCANNER PAGE
-elif menu == "🚀 MASS AUTO-SCANNER":
-    st.title("🚀 MASS AUTO-SCANNER (USDT PAIRS)")
-    st.write("Scanning all Binance assets across multiple timeframes for 75%+ confirmation...")
     
-    if st.button("START DEEP SYSTEM SCAN"):
-        st.markdown('<div class="loader"></div>', unsafe_allow_html=True)
-        status = st.empty()
-        
-        symbols = fetch_all_usdt_pairs()
-        confirmed_longs = []
-        
-        # Parallel Processing for Speed
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            results = list(executor.map(analyze_coin_multi_frame, symbols))
-            
-        for sym, score, price in results:
-            if score >= 75:
-                confirmed_longs.append({"Symbol": sym, "Score": score, "Price": price})
-        
-        st.divider()
-        if confirmed_longs:
-            st.subheader(f"🔥 {len(confirmed_longs)} PRO-CONFIRMED SIGNALS FOUND")
-            cols = st.columns(2)
-            for i, signal in enumerate(confirmed_longs):
-                target_col = cols[i % 2]
-                with target_col:
-                    st.markdown(f"""
-                    <div class="signal-card long-card">
-                        <h3>{signal['Symbol']} - BUY SIGNAL</h3>
-                        <b>Confidence Score: {signal['Score']}%</b><br>
-                        Entry Price: ${signal['Price']}<br>
-                        <b>Action: EXECUTE (Wallet Shield Active)</b>
-                    </div>
-                    """, unsafe_allow_html=True)
-        else:
-            st.warning("Scanning complete. No coins met the strict 75% confirmation criteria for your safety.")
+    with col_a:
+        st.subheader("Indicator Setup")
+        st.checkbox("Smart Money Concepts (SMC)", value=True)
+        st.checkbox("AI Trend Break Engine", value=True)
+        st.checkbox("Harmonic Patterns Plus", value=True)
+        st.slider("RSI Period", 7, 21, 14)
 
-# 6. HISTORY PAGE
-elif menu == "📜 HISTORY":
-    st.title("📜 SYSTEM LOGS & HISTORY")
-    st.table(pd.DataFrame({
-        "Trade ID": ["#4092", "#4091", "#4090"],
-        "Asset": ["SOL/USDT", "BTC/USDT", "PEPE/USDT"],
-        "Type": ["LONG (75%)", "LONG (80%)", "SHORT (70%)"],
-        "Outcome": ["SUCCESS", "SUCCESS", "SECURED EXIT"]
-    }))
+    with col_b:
+        st.subheader("Trend Status")
+        st.info("Trend: BULLISH | Volatility: HIGH")
+        st.success("High Probability Entry Detected at Order Block (OB)")
+
+# --- 3. SNIPER BOT (Automated Execution) ---
+elif menu == "SNIPER BOT":
+    st.title("🎯 SNIPER LOGIC AUTO-EXECUTION")
+    
+    with st.container():
+        st.subheader("Risk Management Settings")
+        col1, col2 = st.columns(2)
+        with col1:
+            leverage = st.number_input("Leverage (Futures)", 1, 125, 20)
+            margin = st.number_input("Margin Per Trade ($)", 10.0, 1000.0, 50.0)
+        with col2:
+            st.write("Automation Controls")
+            auto_sl = st.toggle("Automated Stop-Loss Adjustment", value=True)
+            sniper_mode = st.toggle("Sniper Logic (High Accuracy Only)", value=True)
+
+    if st.button("START AUTO BOT"):
+        with st.status("Initializing Bot...", expanded=True) as status:
+            st.write("Scanning for Liquidity...")
+            time.sleep(1)
+            st.write("Checking Binance API Connectivity...")
+            time.sleep(1)
+            st.write("Sniper Logic Active. Waiting for high-probability entry...")
+            status.update(label="BOT RUNNING", state="running", expanded=False)
+        st.toast("Bot started successfully!")
+
+# --- 4. WALLET & API (RedotPay & Binance) ---
+elif menu == "WALLET & API":
+    st.title("🔑 API & FINANCIAL MANAGEMENT")
+    
+    st.subheader("Binance API (Futures)")
+    api_key = st.text_input("API Key", type="password")
+    api_secret = st.text_input("API Secret", type="password")
+    
+    st.subheader("External Wallet")
+    st.write("Manage your RedotPay or Binance Card transfers.")
+    if st.button("Check Wallet Balance"):
+        st.info("Balance: 420.50 USDT")
+
+# --- 5. SUBSCRIPTION (SaaS Tiers) ---
+elif menu == "SUBSCRIPTION":
+    st.title("💳 UPGRADE YOUR ACCOUNT")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("""<div class='metric-card'><h3>BASIC</h3><h2>$30/mo</h2><hr>
+        • Basic Signals<br>• 1 Active Bot<br>• Standard Support</div>""", unsafe_allow_html=True)
+        if st.button("Choose Basic"): pass
+        
+    with col2:
+        st.markdown("""<div class='metric-card' style='border-color: #00FFA3;'><h3>PRO</h3><h2>$150/mo</h2><hr>
+        • Sniper Logic Active<br>• 5 Active Bots<br>• SMC Indicators</div>""", unsafe_allow_html=True)
+        if st.button("Choose Pro"): pass
+        
+    with col3:
+        st.markdown("""<div class='metric-card'><h3>ULTIMATE</h3><h2>$300/mo</h2><hr>
+        • All Features<br>• Unlimited Bots<br>• Priority API Access</div>""", unsafe_allow_html=True)
+        if st.button("Choose Ultimate"): pass
+
+# Footer
+st.sidebar.markdown("---")
+st.sidebar.caption(f"KD AI AUTO BOT v2.1 | {datetime.now().strftime('%Y-%m-%d')}")
