@@ -1,3 +1,4 @@
+# Script to generate a clean requirements.txt for KD AI AUTO BOT
 libraries = [
     "streamlit",
     "pandas",
@@ -6,15 +7,15 @@ libraries = [
     "requests"
 ]
 
-def create_requirements_file():
+def create_requirements():
     try:
-        with open("requirements.txt", "w") as f:
+        # Writing in 'w' mode to overwrite any previous broken file
+        with open("requirements.txt", "w", encoding="utf-8") as f:
             for lib in libraries:
-                f.write(lib + "\n")
-        print("✅ Success: 'requirements.txt' has been created successfully!")
+                f.write(f"{lib}\n")
+        print("✅ Success: 'requirements.txt' created perfectly.")
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"❌ Error creating file: {e}")
 
 if __name__ == "__main__":
-    create_requirements_file()
-
+    create_requirements()
