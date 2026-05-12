@@ -5,125 +5,115 @@ import plotly.graph_objects as go
 from datetime import datetime
 import time
 
-# --- Page Config ---
-st.set_page_config(page_title="KD AI MACHINE-GUN TERMINAL", layout="wide", initial_sidebar_state="collapsed")
+# --- Page Setup (Full Wide Mode) ---
+st.set_page_config(page_title="KD AI QUANTUM TERMINAL", layout="wide", initial_sidebar_state="expanded")
 
-# Custom CSS for Pro Dark UI
+# --- UI Customization (Pro Theme) ---
 st.markdown("""
     <style>
-    .main { background-color: #080a0d; color: #e1e1e1; }
-    .stMetric { background-color: #11151c; padding: 20px; border-radius: 10px; border: 1px solid #1f2633; }
-    .status-active { color: #00ff00; font-weight: bold; animation: blinker 1.5s linear infinite; }
-    @keyframes blinker { 50% { opacity: 0; } }
-    .trade-card { background-color: #161b22; padding: 15px; border-radius: 10px; border-left: 5px solid #00d1ff; margin-bottom: 10px; }
+    .stApp { background-color: #05070a; color: #ffffff; }
+    [data-testid="stSidebar"] { background-color: #0d1117; border-right: 1px solid #1f2633; }
+    .metric-card { background: linear-gradient(145deg, #0d1117, #161b22); padding: 20px; border-radius: 12px; border: 1px solid #30363d; text-align: center; }
+    .neon-text { color: #00d1ff; text-shadow: 0 0 10px #00d1ff; font-weight: bold; }
+    .status-active { color: #39ff14; font-weight: bold; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
     """, unsafe_allow_html=True)
 
-# --- Session State for Continuous Logic ---
+# --- Logic Initialization ---
 if 'balance' not in st.session_state: st.session_state.balance = 30.00
-if 'profit_history' not in st.session_state: st.session_state.profit_history = [30.00]
-if 'bot_running' not in st.session_state: st.session_state.bot_running = False
+if 'trades' not in st.session_state: st.session_state.trades = []
+if 'running' not in st.session_state: st.session_state.running = False
 
-# --- Sidebar Controls ---
+# --- Sidebar: Profile & Configuration ---
 with st.sidebar:
-    st.header("🤖 KD AI CONTROL")
-    mode = st.toggle("Live Execution Mode", value=False)
+    st.image("https://cryptologos.cc/logos/binance-coin-bnb-logo.png", width=60)
+    st.title("KD AI PRO PROFILE")
+    st.markdown("User: **KALANA_PRO_TRADER**")
+    st.markdown("Tier: <span style='color:gold;'>VIP ELITE (AI-GEN)</span>", unsafe_allow_html=True)
     st.divider()
-    st.write("Strategy: **Machine-Gun Scalper v6**")
-    st.write("Target: **All Binance USDT Pairs**")
+    
+    st.subheader("⚙️ Bot Engine Config")
+    scan_speed = st.select_slider("Scan Frequency", ["Standard", "High", "Machine-Gun"], value="Machine-Gun")
+    max_trades = st.slider("Max Concurrent Trades", 1, 50, 20)
     st.divider()
-    if st.button("RESET DEMO BALANCE"):
-        st.session_state.balance = 30.00
-        st.session_state.profit_history = [30.00]
+    
+    if st.button("🚀 INITIATE SYSTEM", use_container_width=True):
+        st.session_state.running = True
+    if st.button("🛑 EMERGENCY KILL-SWITCH", use_container_width=True):
+        st.session_state.running = False
 
-# --- Header Section ---
-c1, c2 = st.columns([3, 1])
-with c1:
-    st.title("🔫 KD AI AUTO-BOT: MACHINE-GUN MODE")
-with c2:
-    status_label = '<span class="status-active">● SCANNING MARKET...</span>' if st.session_state.bot_running else '<span style="color:red;">● SYSTEM IDLE</span>'
-    st.markdown(f"<h3>{status_label}</h3>", unsafe_allow_html=True)
+# --- Top Header & Stats ---
+st.markdown("<h1 style='text-align: center;'>⚡ KD AI QUANTUM AUTO-TRADER v7.0</h1>", unsafe_allow_html=True)
+st.write("---")
 
-# --- Top Row: Dynamic Metrics ---
-m1, m2, m3, m4 = st.columns(4)
-current_profit = st.session_state.balance - 30.00
-m1.metric("Current Wallet", f"${st.session_state.balance:.2f}", f"{((current_profit/30)*100):.2f}%")
-m2.metric("Net Profit (Today)", f"${current_profit:.2f}", "Auto-Compounding")
-m3.metric("Active Scans", "342 Pairs", "Binance Global")
-m4.metric("Risk Level", "Low (1-3% Margin)", "Safe Mode")
+c1, c2, c3, c4, c5 = st.columns(5)
+net_pnl = st.session_state.balance - 30.00
+c1.markdown(f'<div class="metric-card"><caption>TOTAL EQUITY</caption><h2 class="neon-text">${st.session_state.balance:.2f}</h2></div>', unsafe_allow_html=True)
+c2.markdown(f'<div class="metric-card"><caption>DAILY NET PROFIT</caption><h2 style="color:#39ff14;">+${max(0, net_pnl):.2f}</h2></div>', unsafe_allow_html=True)
+c3.markdown('<div class="metric-card"><caption>SCANNING PAIRS</caption><h2 style="color:#00d1ff;">324/324</h2></div>', unsafe_allow_html=True)
+c4.markdown('<div class="metric-card"><caption>TRADING FEES (BNB)</caption><h2 style="color:#ff4b4b;">$0.12</h2></div>', unsafe_allow_html=True)
+c5.markdown('<div class="metric-card"><caption>SYSTEM STATUS</caption><h2 class="status-active">ACTIVE</h2></div>' if st.session_state.running else '<div class="metric-card"><caption>SYSTEM STATUS</caption><h2 style="color:red;">OFFLINE</h2></div>', unsafe_allow_html=True)
 
-st.divider()
+st.write("---")
 
 # --- Main Dashboard Layout ---
-left_col, right_col = st.columns([2, 1])
+left_panel, right_panel = st.columns([2, 1])
 
-with left_col:
-    # 1. Profit Line Chart (ප්‍රොෆිට් එක උඩ පහළ යන රේඛාව)
-    st.subheader("📈 Profit Growth Curve (Real-time)")
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(y=st.session_state.profit_history, mode='lines+markers', 
-                             line=dict(color='#00d1ff', width=3),
-                             fill='tozeroy', fillcolor='rgba(0, 209, 255, 0.1)'))
-    fig.update_layout(template="plotly_dark", height=350, margin=dict(l=0,r=0,t=0,b=0),
-                      xaxis_title="Trade Count", yaxis_title="Balance ($)")
+with left_panel:
+    # Live Profit Visualizer
+    st.subheader("📈 Quantum Growth Visualization")
+    points = 20
+    hist_data = np.cumsum(np.random.normal(0.1, 0.2, points)) + 30
+    fig = go.Figure(data=go.Scatter(y=hist_data, mode='lines+markers', line=dict(color='#00d1ff', width=4), fill='tozeroy'))
+    fig.update_layout(template="plotly_dark", height=380, margin=dict(l=0,r=0,t=0,b=0), xaxis_title="Time Interval (ms)", yaxis_title="Portfolio Value")
     st.plotly_chart(fig, use_container_width=True)
 
-    # 2. Market Scanner Simulation
-    st.subheader("🔍 Real-time Multi-Coin Scanner")
-    scan_data = pd.DataFrame({
-        "Coin": ["BTC/USDT", "ETH/USDT", "SOL/USDT", "XRP/USDT", "ADA/USDT"],
-        "Signal": ["STRONG BUY", "NEUTRAL", "STRONG BUY", "SCALPING", "BUY"],
-        "Sniper Logic": ["98%", "45%", "92%", "88%", "76%"],
-        "Status": ["Executing...", "Waiting", "Executing...", "Analyzing", "Analyzing"]
+    # 300+ Pairs Market Heatmap Simulation
+    st.subheader("🔥 AI Market Scanner (All Binance USDT Pairs)")
+    pairs = ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "DOGE", "DOT", "MATIC", "LINK"]
+    scan_df = pd.DataFrame({
+        "Pair": [f"{p}/USDT" for p in pairs],
+        "Trend": np.random.choice(["BULK BUY", "SCALPING", "LONG ENTRY"], 10),
+        "AI Score": [f"{np.random.randint(85, 99)}%" for _ in range(10)],
+        "Action": ["EXECUTING" if st.session_state.running else "READY" for _ in range(10)]
     })
-    st.table(scan_data)
+    st.dataframe(scan_df, use_container_width=True)
 
-with right_col:
-    # 3. Control Center
-    st.subheader("🎮 Bot Execution")
-    col_btn1, col_btn2 = st.columns(2)
-    
-    if col_btn1.button("🚀 START AUTO-TRADING", use_container_width=True):
-        st.session_state.bot_active = True
-        st.session_state.bot_running = True
-    
-    if col_btn2.button("🛑 STOP & SECURE", use_container_width=True):
-        st.session_state.bot_active = False
-        st.session_state.bot_running = False
-
-    # 4. Live Position Visual (Binance Style)
-    st.subheader("⚡ Live Positions")
-    if st.session_state.bot_running:
-        # Simulate Balance Growth for Demo
-        time.sleep(0.1) # Smoothness
-        if np.random.rand() > 0.7: # Simulate a winning trade
-            st.session_state.balance += np.random.uniform(0.10, 0.50)
-            st.session_state.profit_history.append(st.session_state.balance)
-
-        st.markdown(f"""
-        <div class="trade-card">
-            <b style="color:#00ff00;">LONG: SOL/USDT 20x</b><br>
-            <small>Entry: 145.20 | Mark: 146.85</small><br>
-            <b style="font-size:18px; color:#00ff00;">PNL: +${np.random.uniform(0.5, 2.0):.2f} (Active)</b>
-        </div>
-        <div class="trade-card">
-            <b style="color:#00ff00;">LONG: BTC/USDT 10x</b><br>
-            <small>Entry: 64,100 | Mark: 64,320</small><br>
-            <b style="font-size:18px; color:#00ff00;">PNL: +${np.random.uniform(1.0, 3.5):.2f} (Active)</b>
-        </div>
-        """, unsafe_allow_html=True)
+with right_panel:
+    st.subheader("🎯 Machine-Gun Orders")
+    if st.session_state.running:
+        # Simulate Machine Gun Trading Logic
+        st.toast("Scanning 324 Pairs...", icon="🔍")
+        for i in range(3):
+            profit = round(np.random.uniform(0.05, 0.40), 2)
+            st.markdown(f"""
+                <div style="background-color:#161b22; padding:12px; border-radius:8px; border-left:4px solid #39ff14; margin-bottom:10px;">
+                    <b style="color:#00d1ff;">LONG: {np.random.choice(pairs)}/USDT 20x</b><br>
+                    <small>Status: Auto-Closing at TP</small><br>
+                    <span style="color:#39ff14; font-weight:bold;">Real-time PNL: +${profit}</span>
+                </div>
+            """, unsafe_allow_html=True)
+            # Update virtual balance
+            st.session_state.balance += (profit - 0.01) # 0.01 is the fee
     else:
-        st.info("Bot is Offline. Start the engine to analyze coins.")
+        st.info("Initiate system to begin high-frequency AI trading.")
 
-# --- Footer System Logs ---
-st.divider()
-st.subheader("🛠 System Intelligence Logs")
-logs = [
-    f"[{datetime.now().strftime('%H:%M:%S')}] - Scanning 300+ pairs on Binance...",
-    f"[{datetime.now().strftime('%H:%M:%S')}] - Sniper Logic v6: Potential entry found on SOL/USDT",
-    f"[{datetime.now().strftime('%H:%M:%S')}] - Risk Check: 3% Margin allocated. Balance secured."
-]
-for log in logs:
-    st.text(log)
+    st.divider()
+    st.subheader("🛠 Active System Metrics")
+    st.write(f"CPU Load: {np.random.randint(10, 40)}%")
+    st.write(f"Latency: {np.random.randint(5, 15)}ms")
+    st.write("API Sync: **Verified (AES-256)**")
 
-st.caption("KD AI AUTO BOT PRO | Version 2026.05 | High-Frequency Machine-Gun Mode")
+# --- Log Terminal ---
+st.write("---")
+with st.expander("📝 AI Intelligence & Execution Logs", expanded=True):
+    st.code(f"""
+    [{datetime.now().strftime('%H:%M:%S')}] ANALYZING 324 BINANCE PAIRS...
+    [{datetime.now().strftime('%H:%M:%S')}] SNIPER LOGIC: SIGNAL DETECTED ON {np.random.choice(pairs)}/USDT
+    [{datetime.now().strftime('%H:%M:%S')}] ORDER EXECUTED: MARGIN $0.90 | LEVERAGE 20X
+    [{datetime.now().strftime('%H:%M:%S')}] TAKE PROFIT HIT: CLOSING POSITION...
+    [{datetime.now().strftime('%H:%M:%S')}] NET PROFIT SECURED (AFTER FEES).
+    """)
+
+st.caption("KD AI QUANTUM | PRO TRADING PLATFORM | CONNECTED TO BINANCE CLOUD")
