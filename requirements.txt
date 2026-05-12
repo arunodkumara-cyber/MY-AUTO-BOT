@@ -2,5 +2,4 @@ streamlit
 pandas
 numpy
 plotly
-pandas-ta
-
+pandas_ta
