@@ -1,120 +1,118 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
-from streamlit_tradingview_widget import streamlit_tradingview_widget
+from datetime import datetime
+try:
+    from streamlit_tradingview_widget import streamlit_tradingview_widget
+except ImportError:
+    st.error("Please add 'streamlit-tradingview-widget' to your requirements.txt file.")
 
 # --- Page Setup ---
 st.set_page_config(page_title="KD AI ULTIMATE TERMINAL", layout="wide", initial_sidebar_state="collapsed")
 
-# Custom Professional CSS
+# Custom Professional CSS (Dark Theme)
 st.markdown("""
     <style>
     .main { background-color: #0b0e11; }
     .metric-container { background-color: #161b22; border: 1px solid #30363d; padding: 15px; border-radius: 10px; text-align: center; }
-    .profit-text { color: #00ff00; font-size: 20px; font-weight: bold; }
-    .loss-text { color: #ff4b4b; font-size: 20px; font-weight: bold; }
     .position-box { border-left: 5px solid #f0b90b; background-color: #1e2329; padding: 15px; border-radius: 8px; margin-top: 10px; }
-    .sidebar-story { background: linear-gradient(135deg, #1e2329 0%, #0b0e11 100%); padding: 15px; border-radius: 10px; border: 1px solid #f0b90b; }
+    .sidebar-story { background: linear-gradient(135deg, #1e2329 0%, #0b0e11 100%); padding: 12px; border-radius: 8px; border: 1px solid #f0b90b; margin-bottom: 10px;}
     </style>
     """, unsafe_allow_html=True)
 
-# --- Top Bar: Real-time Wallet & Profit ---
-st.markdown("### 🖥️ Trading Desktop Home")
-col_w1, col_w2, col_w3, col_w4, col_w5 = st.columns(5)
+# --- Logic for Demo & Live Modes ---
+if 'bot_active' not in st.session_state: st.session_state.bot_active = False
 
-with col_w1:
-    st.markdown('<div class="metric-container"><caption>Wallet Balance</caption><h2 style="color:#f0b90b;">$25,430.50</h2></div>', unsafe_allow_html=True)
-with col_w2:
-    st.markdown('<div class="metric-container"><caption>Target Profit (TP)</caption><h2 style="color:#00ff00;">$65,200.00</h2></div>', unsafe_allow_html=True)
-with col_w3:
-    st.markdown('<div class="metric-container"><caption>Stop Loss (SL)</caption><h2 style="color:#ff4b4b;">$62,100.00</h2></div>', unsafe_allow_html=True)
-with col_w4:
-    st.markdown('<div class="metric-container"><caption>Gross Profit</caption><h2>+$850.25</h2></div>', unsafe_allow_html=True)
-with col_w5:
-    st.markdown('<div class="metric-container"><caption>Net Profit</caption><h2 style="color:#00d1ff;">+$720.40</h2></div>', unsafe_allow_html=True)
+# Sidebar for Mode Selection
+with st.sidebar:
+    st.title("KD AI PRO")
+    app_mode = st.radio("Select Mode:", ["📈 Demo Trading", "💰 Live Trading"])
+    st.divider()
+    if app_mode == "💰 Live Trading":
+        st.warning("Connect API Keys to enable Live mode.")
+        st.text_input("Binance API Key", type="password")
+        st.text_input("Binance Secret Key", type="password")
+    else:
+        st.success("Demo Mode Active: $30 Balance Loaded")
+
+# --- Financial Metrics Logic ---
+# Demo mode එකේදී ඩොලර් 30 කින් පටන් ගන්නා ලෙස සකසා ඇත
+wallet_bal = 30.00 if app_mode == "📈 Demo Trading" else 0.00
+net_profit = 2.45 if st.session_state.bot_active else 0.00
+total_bal = wallet_bal + net_profit
+
+# --- Top Bar: Wallet Display ---
+st.markdown(f"### 🖥️ KD AI Desktop - {app_mode}")
+m1, m2, m3, m4, m5 = st.columns(5)
+
+with m1:
+    st.markdown(f'<div class="metric-container"><caption>Wallet Balance</caption><h2 style="color:#f0b90b;">${wallet_bal:.2f}</h2></div>', unsafe_allow_html=True)
+with m2:
+    st.markdown('<div class="metric-container"><caption>Net Profit</caption><h2 style="color:#00ff00;">+$' + str(net_profit) + '</h2></div>', unsafe_allow_html=True)
+with m3:
+    st.markdown(f'<div class="metric-container"><caption>Total Equity</caption><h2 style="color:#00d1ff;">${total_bal:.2f}</h2></div>', unsafe_allow_html=True)
+with m4:
+    st.markdown('<div class="metric-container"><caption>Take Profit (TP)</caption><h2 style="color:#00ff00;">$0.85</h2></div>', unsafe_allow_html=True)
+with m5:
+    st.markdown('<div class="metric-container"><caption>Stop Loss (SL)</caption><h2 style="color:#ff4b4b;">$0.30</h2></div>', unsafe_allow_html=True)
 
 st.write("---")
 
-# --- Main Interface Layout ---
-left_panel, mid_panel, right_panel = st.columns([1, 2.5, 1.2])
+# --- Main Layout ---
+left_col, mid_col, right_col = st.columns([1, 2.5, 1.2])
 
-# 1. Left Panel: Account & Stories
-with left_panel:
-    st.subheader("🚀 Success Stories")
-    st.markdown("""
-    <div class="sidebar-story">
-        <small>Latest Win:</small><br>
-        <b>BTC/USDT +15%</b><br>
-        <small>Strategy: Sniper Logic</small>
-    </div><br>
-    <div class="sidebar-story">
-        <small>Monthly ROI:</small><br>
-        <b style="color:#00ff00;">+42.5% Profit</b>
-    </div>
-    """, unsafe_allow_html=True)
-    
+# 1. Left: Stories & Stats
+with left_col:
+    st.subheader("🚀 Stories")
+    st.markdown('<div class="sidebar-story"><b>Win: SOL/USDT</b><br><small>Profit: +$4.20</small></div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-story"><b>Win: BTC/USDT</b><br><small>Profit: +$12.50</small></div>', unsafe_allow_html=True)
     st.divider()
-    st.subheader("🔑 Access Keys")
-    st.text_input("Binance API Key", type="password")
-    st.radio("Mode", ["Live Account", "Demo Account"])
+    st.write("Daily Target: 15%")
+    st.progress(65)
 
-# 2. Mid Panel: Live TradingView Analysis
-with mid_panel:
+# 2. Mid: Real Analysis (TradingView)
+with mid_col:
     st.subheader("📊 Live Market Analysis")
-    # සැබෑ TradingView Chart එකක් ඇතුළත් කිරීම
-    streamlit_tradingview_widget(
-        symbol="BINANCE:BTCUSDT",
-        datasetName="BTC Price",
-        elemId="tradingview_btc",
-        height=500,
-        width="100%"
-    )
+    try:
+        streamlit_tradingview_widget(symbol="BINANCE:BTCUSDT", height=450, width="100%")
+    except:
+        st.info("Chart will load once library is installed.")
 
-# 3. Right Panel: Active Position Tracker (Binance Style)
-with right_panel:
-    st.subheader("⚡ Active Positions")
-    
-    # Position UI
-    st.markdown("""
-    <div class="position-box">
-        <span style="background-color:#00ff00; color:black; padding:2px 5px; border-radius:3px; font-weight:bold;">LONG</span> 
-        <b>BTC/USDT 20x</b><br>
-        <small>Size: 0.52 BTC</small><br>
-        <hr style="margin:10px 0;">
-        <div style="display:flex; justify-content:space-between;">
-            <span>Entry: 63,400.0</span>
-            <span>Mark: 64,150.2</span>
+# 3. Right: Binance Position Tracker
+with right_col:
+    st.subheader("⚡ Active Trade")
+    if st.session_state.bot_active:
+        st.markdown("""
+        <div class="position-box">
+            <span style="background-color:#00ff00; color:black; padding:2px 6px; border-radius:3px; font-weight:bold; font-size:12px;">LONG</span> 
+            <b>BTC/USDT 10x</b><br>
+            <small>Isolated Margin</small>
+            <hr style="margin:8px 0; border-top: 1px solid #30363d;">
+            <div style="display:flex; justify-content:space-between; font-size:13px;">
+                <span>Size: 15.0 USDT</span>
+                <span style="color:#00ff00;">PNL: +$2.45</span>
+            </div>
+            <div style="margin-top:10px; text-align:center;">
+                <small>Entry: 63,500 | Mark: 64,210</small>
+            </div>
         </div>
-        <div style="margin-top:10px;">
-            <span style="color:#00ff00; font-size:22px; font-weight:bold;">Unrealized PNL: +$390.12 (12.4%)</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.write("")
-    if st.button("🔴 EMERGENCY CLOSE POSITION", use_container_width=True):
-        st.error("Closing all Binance orders...")
+        """, unsafe_allow_html=True)
+        if st.button("❌ Close Trade", use_container_width=True):
+             st.session_state.bot_active = False
+    else:
+        st.info("No Active Trades. Press ON to start Demo.")
 
     st.divider()
-    st.subheader("🤖 Bot Control")
-    st.checkbox("Run Sniper Logic Engine", value=True)
-    st.checkbox("Auto-Trail Take Profit", value=True)
-    
+    st.subheader("🤖 Control")
     c1, c2 = st.columns(2)
     if c1.button("🟢 ON", use_container_width=True):
-        st.success("BOT ACTIVE")
+        st.session_state.bot_active = True
     if c2.button("🔴 OFF", use_container_width=True):
-        st.warning("BOT IDLE")
+        st.session_state.bot_active = False
 
-# --- Bottom Bar: Order Logs ---
+# --- Bottom Bar ---
 st.write("---")
-st.subheader("📜 Live Order Logs")
-log_data = pd.DataFrame({
-    "Time": ["12:45:01", "12:48:22", "12:55:10"],
-    "Action": ["Limit Buy BTC", "Signal Detected", "Take Profit Updated"],
-    "Status": ["Filled", "Sniper Active", "Success"]
-})
-st.table(log_data)
+st.subheader("📜 System Logs")
+st.code(f"[{datetime.now().strftime('%H:%M:%S')}] - System Initialized in {app_mode}\n[{datetime.now().strftime('%H:%M:%S')}] - Searching for Sniper Entry...")
 
-st.caption("KD AI ULTIMATE TERMINAL | v5.0 Pro | Binance API Integrated")
+st.caption("KD AI AUTO BOT v5.1 | Developed for Professional Traders")
