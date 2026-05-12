@@ -12,6 +12,8 @@ st.markdown("""
     .main { background-color: #0b0e11; color: #eaecef; }
     .stMetric { background-color: #1e2329; border-radius: 10px; padding: 15px; border: 1px solid #474d57; }
     .buy-signal { background-color: #1c3d2a; padding: 15px; border-radius: 10px; border-left: 5px solid #00ff00; margin-bottom: 10px; }
+    .stButton>button { background-color: #f0b90b; color: black; width: 100%; border-radius: 5px; font-weight: bold; border: none; }
+    .stButton>button:hover { background-color: #d4a30a; color: black; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -53,59 +55,65 @@ def get_all_usdt_coins():
         return pd.DataFrame()
 
 # UI Layout
-st.title("🚀 KD AI MASTER SCANNER (All Coins)")
-st.write("බයිනෑන්ස් හි සියලුම USDT Pairs ස්කෑන් කර RSI අගයන් පරීක්ෂා කරයි.")
+st.title("🤖 KD AI MASTER SCANNER")
+st.write("Professional Real-time Market Scanner for Binance USDT Pairs")
 
-if st.button('Start Global Market Scan'):
-    with st.spinner('දත්ත එකතු කරමින් පවතී...'):
+# 4. Global Market Scan Section
+if st.button('RUN SYSTEM SCAN'):
+    with st.spinner('Scanning Global Market Data...'):
         all_coins = get_all_usdt_coins()
         
         if not all_coins.empty:
-            # Sort by price drop to find potentials
-            top_losers = all_coins.sort_values(by='priceChangePercent').head(15).copy()
-            
-            # Get RSI for top 15 losers
-            top_losers['RSI'] = top_losers['symbol'].apply(get_rsi)
+            # Get top 15 losers for RSI analysis
+            top_potentials = all_coins.sort_values(by='priceChangePercent').head(15).copy()
+            top_potentials['RSI'] = top_potentials['symbol'].apply(get_rsi)
             
             col1, col2 = st.columns([1, 2])
             
             with col1:
-                st.subheader("🎯 Buy Signals")
-                # Filter for RSI < 35
-                signals = top_losers[top_losers['RSI'] < 40]
+                st.subheader("🎯 Trade Signals")
+                # Logic: RSI < 40 is considered a potential entry
+                signals = top_potentials[top_potentials['RSI'] < 40]
                 if not signals.empty:
                     for _, row in signals.iterrows():
                         st.markdown(f"""
                         <div class="buy-signal">
                             <b>{row['symbol']}</b><br>
-                            RSI: {row['RSI']} | Change: {row['priceChangePercent']}%<br>
-                            Price: ${row['lastPrice']:.4f}
+                            RSI: {row['RSI']} | 24h Change: {row['priceChangePercent']}%<br>
+                            Last Price: ${row['lastPrice']:.4f}
                         </div>
                         """, unsafe_allow_html=True)
                 else:
-                    st.info("හොඳ Buy Signals දැනට නොමැත.")
+                    st.info("No strong Oversold signals detected at the moment.")
 
             with col2:
-                st.subheader("📊 Top Market Opportunities")
-                st.dataframe(top_losers[['symbol', 'lastPrice', 'priceChangePercent', 'RSI']], use_container_width=True)
+                st.subheader("📊 Market Opportunities (Top 15)")
+                st.dataframe(top_potentials[['symbol', 'lastPrice', 'priceChangePercent', 'RSI']], use_container_width=True)
                 
-            # Chart Section
+            # 5. TradingView Chart Integration
             st.divider()
-            selected = st.selectbox("Select Coin to View Chart:", top_losers['symbol'].tolist())
+            st.subheader("🔍 Technical Chart Analysis")
+            selected = st.selectbox("Select Asset to View Interactive Chart:", top_potentials['symbol'].tolist())
+            
             chart_html = f"""
-            <div style="height:400px;">
+            <div style="height:500px;">
                 <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
                 <script type="text/javascript">
                 new TradingView.widget({{
-                  "width": "100%", "height": 400, "symbol": "BINANCE:{selected}",
-                  "interval": "H", "theme": "dark", "style": "1", "locale": "en"
+                  "width": "100%", "height": 500, "symbol": "BINANCE:{selected}",
+                  "interval": "60", "timezone": "Etc/UTC", "theme": "dark",
+                  "style": "1", "locale": "en", "toolbar_bg": "#f1f3f6",
+                  "enable_publishing": false, "allow_symbol_change": true,
+                  "container_id": "tradingview_chart"
                 }});
                 </script>
+                <div id="tradingview_chart"></div>
             </div>
             """
-            components.html(chart_html, height=420)
+            components.html(chart_html, height=520)
 else:
-    st.info("පරීක්ෂාව ආරම්භ කිරීමට 'Start Global Market Scan' බොත්තම ඔබන්න.")
+    st.info("System Standby. Click 'RUN SYSTEM SCAN' to analyze the market.")
+
 
 
 
