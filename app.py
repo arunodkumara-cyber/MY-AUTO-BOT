@@ -2,124 +2,119 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from datetime import datetime
+from streamlit_tradingview_widget import streamlit_tradingview_widget
 
-# --- උසස් පිටු සැකසුම (Pro Theme Configuration) ---
-st.set_page_config(page_title="KD AI AUTO BOT PRO", layout="wide", initial_sidebar_state="expanded")
+# --- Page Setup ---
+st.set_page_config(page_title="KD AI ULTIMATE TERMINAL", layout="wide", initial_sidebar_state="collapsed")
 
-# Custom CSS - image_7.png හි මෙන් Dark-Neon Glow එකක් ලබා ගැනීමට
+# Custom Professional CSS
 st.markdown("""
     <style>
-    .main { background-color: #0b0e11; color: #e1e1e1; }
-    .stMetric { background-color: #1e2329; padding: 15px; border-radius: 10px; border-left: 5px solid #f0b90b; }
-    .stTabs [data-baseweb="tab-list"] { gap: 20px; }
-    .stTabs [data-baseweb="tab"] { height: 50px; background-color: #1e2329; border-radius: 5px; color: white; }
-    .trade-card { border: 1px solid #30363d; padding: 15px; border-radius: 10px; background-color: #161b22; margin-bottom: 10px; }
+    .main { background-color: #0b0e11; }
+    .metric-container { background-color: #161b22; border: 1px solid #30363d; padding: 15px; border-radius: 10px; text-align: center; }
+    .profit-text { color: #00ff00; font-size: 20px; font-weight: bold; }
+    .loss-text { color: #ff4b4b; font-size: 20px; font-weight: bold; }
+    .position-box { border-left: 5px solid #f0b90b; background-color: #1e2329; padding: 15px; border-radius: 8px; margin-top: 10px; }
+    .sidebar-story { background: linear-gradient(135deg, #1e2329 0%, #0b0e11 100%); padding: 15px; border-radius: 10px; border: 1px solid #f0b90b; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- Session State (ඩේටා මතකය) ---
-if 'bot_running' not in st.session_state: st.session_state.bot_running = False
-if 'trade_logs' not in st.session_state: st.session_state.trade_logs = []
+# --- Top Bar: Real-time Wallet & Profit ---
+st.markdown("### 🖥️ Trading Desktop Home")
+col_w1, col_w2, col_w3, col_w4, col_w5 = st.columns(5)
 
-# --- Sidebar (API & Account Management) ---
-with st.sidebar:
-    st.image("https://cryptologos.cc/logos/binance-coin-bnb-logo.png", width=50)
-    st.title("KD AI PRO BOT")
-    
-    st.subheader("🔑 API Connectivity")
-    api_key = st.text_input("Binance API Key", type="password", placeholder="Enter Key...")
-    api_secret = st.text_input("Binance Secret Key", type="password", placeholder="Enter Secret...")
+with col_w1:
+    st.markdown('<div class="metric-container"><caption>Wallet Balance</caption><h2 style="color:#f0b90b;">$25,430.50</h2></div>', unsafe_allow_html=True)
+with col_w2:
+    st.markdown('<div class="metric-container"><caption>Target Profit (TP)</caption><h2 style="color:#00ff00;">$65,200.00</h2></div>', unsafe_allow_html=True)
+with col_w3:
+    st.markdown('<div class="metric-container"><caption>Stop Loss (SL)</caption><h2 style="color:#ff4b4b;">$62,100.00</h2></div>', unsafe_allow_html=True)
+with col_w4:
+    st.markdown('<div class="metric-container"><caption>Gross Profit</caption><h2>+$850.25</h2></div>', unsafe_allow_html=True)
+with col_w5:
+    st.markdown('<div class="metric-container"><caption>Net Profit</caption><h2 style="color:#00d1ff;">+$720.40</h2></div>', unsafe_allow_html=True)
+
+st.write("---")
+
+# --- Main Interface Layout ---
+left_panel, mid_panel, right_panel = st.columns([1, 2.5, 1.2])
+
+# 1. Left Panel: Account & Stories
+with left_panel:
+    st.subheader("🚀 Success Stories")
+    st.markdown("""
+    <div class="sidebar-story">
+        <small>Latest Win:</small><br>
+        <b>BTC/USDT +15%</b><br>
+        <small>Strategy: Sniper Logic</small>
+    </div><br>
+    <div class="sidebar-story">
+        <small>Monthly ROI:</small><br>
+        <b style="color:#00ff00;">+42.5% Profit</b>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.divider()
-    mode = st.radio("Execution Mode", ["💎 Live Trading", "🧪 Paper/Demo Trading"])
+    st.subheader("🔑 Access Keys")
+    st.text_input("Binance API Key", type="password")
+    st.radio("Mode", ["Live Account", "Demo Account"])
+
+# 2. Mid Panel: Live TradingView Analysis
+with mid_panel:
+    st.subheader("📊 Live Market Analysis")
+    # සැබෑ TradingView Chart එකක් ඇතුළත් කිරීම
+    streamlit_tradingview_widget(
+        symbol="BINANCE:BTCUSDT",
+        datasetName="BTC Price",
+        elemId="tradingview_btc",
+        height=500,
+        width="100%"
+    )
+
+# 3. Right Panel: Active Position Tracker (Binance Style)
+with right_panel:
+    st.subheader("⚡ Active Positions")
     
-    st.subheader("⚙️ Bot Strategy")
-    st.selectbox("Main Indicator", ["Sniper Logic v4", "SMC + Order Block", "EMA Scalper"])
-    st.slider("Risk Factor", 0.5, 5.0, 1.5)
+    # Position UI
+    st.markdown("""
+    <div class="position-box">
+        <span style="background-color:#00ff00; color:black; padding:2px 5px; border-radius:3px; font-weight:bold;">LONG</span> 
+        <b>BTC/USDT 20x</b><br>
+        <small>Size: 0.52 BTC</small><br>
+        <hr style="margin:10px 0;">
+        <div style="display:flex; justify-content:space-between;">
+            <span>Entry: 63,400.0</span>
+            <span>Mark: 64,150.2</span>
+        </div>
+        <div style="margin-top:10px;">
+            <span style="color:#00ff00; font-size:22px; font-weight:bold;">Unrealized PNL: +$390.12 (12.4%)</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
-    if st.button("🔄 Check Connection"):
-        st.sidebar.success("Connected to Binance API")
+    st.write("")
+    if st.button("🔴 EMERGENCY CLOSE POSITION", use_container_width=True):
+        st.error("Closing all Binance orders...")
 
-# --- Header Section ---
-col_h1, col_h2 = st.columns([3, 1])
-with col_h1:
-    st.title("🚀 Professional Trading Terminal")
-with col_h2:
-    if st.session_state.bot_running:
-        st.markdown('<h3 style="color:#00ff00;">● SYSTEM ONLINE</h3>', unsafe_allow_html=True)
-    else:
-        st.markdown('<h3 style="color:#ff4b4b;">● SYSTEM OFFLINE</h3>', unsafe_allow_html=True)
-
-# --- Top Metrics Row ---
-m1, m2, m3, m4 = st.columns(4)
-m1.metric("Wallet Balance", "$24,560.80", "+$150.20")
-m2.metric("Active Trades", "02", "BTC/USDT, ETH/USDT")
-m3.metric("Win Rate (24h)", "89.4%", "+2.1%")
-m4.metric("Daily Profit", "$420.55", "15% ROI")
-
-st.divider()
-
-# --- Main Dashboard Layout ---
-tab_main, tab_history, tab_settings = st.tabs(["📊 Live Terminal", "📜 Trade History", "🛠 Advanced Config"])
-
-with tab_main:
-    c1, c2 = st.columns([2, 1])
+    st.divider()
+    st.subheader("🤖 Bot Control")
+    st.checkbox("Run Sniper Logic Engine", value=True)
+    st.checkbox("Auto-Trail Take Profit", value=True)
     
-    with c1:
-        st.subheader("Live Market Analysis (Binance Stream)")
-        # ලස්සන Candlestick Chart එකක්
-        fig = go.Figure(data=[go.Candlestick(x=pd.date_range(datetime.now(), periods=50, freq='min'),
-                        open=np.random.randn(50)+50000, high=np.random.randn(50)+50100,
-                        low=np.random.randn(50)+49900, close=np.random.randn(50)+50050)])
-        fig.update_layout(template="plotly_dark", height=400, margin=dict(l=10, r=10, t=10, b=10))
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Bot Control Buttons
-        bc1, bc2 = st.columns(2)
-        if bc1.button("🟢 START TRADING BOT", use_container_width=True):
-            st.session_state.bot_running = True
-            st.session_state.trade_logs.append(f"{datetime.now()} - Bot Started: Searching for Entries...")
-            
-        if bc2.button("🔴 STOP ALL TRADES", use_container_width=True):
-            st.session_state.bot_running = False
-            st.session_state.trade_logs.append(f"{datetime.now()} - Bot Stopped: All positions secured.")
+    c1, c2 = st.columns(2)
+    if c1.button("🟢 ON", use_container_width=True):
+        st.success("BOT ACTIVE")
+    if c2.button("🔴 OFF", use_container_width=True):
+        st.warning("BOT IDLE")
 
-    with c2:
-        st.subheader("Live Order Status")
-        if st.session_state.bot_running:
-            st.markdown("""
-                <div class="trade-card">
-                    <b style="color:#00d1ff;">BUY ORDER: BTC/USDT</b><br>
-                    Price: $64,230.12 | Status: <span style="color:#00ff00;">Trailing TP</span><br>
-                    <b>Profit: +$45.20 (0.85%)</b>
-                </div>
-                <div class="trade-card">
-                    <b style="color:#00d1ff;">SELL ORDER: ETH/USDT</b><br>
-                    Price: $3,450.55 | Status: <span style="color:#f0b90b;">Waiting for Confirmation</span><br>
-                    <b>Profit: -$2.10 (-0.05%)</b>
-                </div>
-            """, unsafe_allow_html=True)
-            if st.button("❌ Manual Cancel Trade"):
-                st.warning("Requesting Binance to cancel trade...")
-        else:
-            st.info("Bot is idle. No active trades found on Binance.")
-
-with tab_history:
-    st.subheader("Recent Execution History")
-    history_df = pd.DataFrame({
-        "Time": [datetime.now().strftime("%H:%M:%S") for _ in range(5)],
-        "Pair": ["BTC/USDT", "SOL/USDT", "XRP/USDT", "BTC/USDT", "ETH/USDT"],
-        "Type": ["LONG", "SHORT", "LONG", "LONG", "SHORT"],
-        "Outcome": ["✅ Win (+$45)", "✅ Win (+$12)", "❌ Loss (-$5)", "✅ Win (+$80)", "✅ Win (+$22)"]
-    })
-    st.table(history_df)
-
-with tab_settings:
-    st.subheader("System Integration Logs")
-    for log in st.session_state.trade_logs[-10:]:
-        st.text(f"→ {log}")
-
-# --- Footer ---
+# --- Bottom Bar: Order Logs ---
 st.write("---")
-st.caption("KD AI AUTO BOT PRO v4.2 | Connected to Binance Cloud | Status: Optimized")
+st.subheader("📜 Live Order Logs")
+log_data = pd.DataFrame({
+    "Time": ["12:45:01", "12:48:22", "12:55:10"],
+    "Action": ["Limit Buy BTC", "Signal Detected", "Take Profit Updated"],
+    "Status": ["Filled", "Sniper Active", "Success"]
+})
+st.table(log_data)
+
+st.caption("KD AI ULTIMATE TERMINAL | v5.0 Pro | Binance API Integrated")
