@@ -1,39 +1,38 @@
 import requests
 
-# Function to get all trading pairs from Binance
-def get_all_trading_pairs():
-    try:
-        url = "https://api.binance.com/api/v3/exchangeInfo"
-        response = requests.get(url)
-        data = response.json()
-        symbols = [item['symbol'] for item in data['symbols'] if item['status'] == 'TRADING']
-        return symbols
-    except Exception as e:
-        print(f"Error fetching symbols: {e}")
-        return []
-
-# Function to get live price
-def get_live_price(symbol):
-    try:
-        url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
-        response = requests.get(url)
-        data = response.json()
-        return data['price']
-    except Exception as e:
-        return "N/A"
+# 1. Function to get 24h price change data for all coins
+def get_market_analysis():
+    url = "https://api.binance.com/api/v3/ticker/24hr"
+    response = requests.get(url)
+    data = response.json()
+    
+    # Filter only USDT pairs and calculate price drop
+    market_data = []
+    for coin in data:
+        if coin['symbol'].endswith('USDT'):
+            market_data.append({
+                'symbol': coin['symbol'],
+                'price': coin['lastPrice'],
+                'change': float(coin['priceChangePercent'])
+            })
+    return market_data
 
 # --- Execution ---
-print("--- KD AI AUTO BOT ---")
+print("--- KD AI AUTO BOT: Market Scanner ---")
 
-all_coins = get_all_trading_pairs()
-print(f"Total Trading Pairs Found: {len(all_coins)}")
+# Scan the market
+all_data = get_market_analysis()
 
-if all_coins:
-    print("\nScanning Top Coins:")
-    # Checking only the first 5 coins for testing
-    for coin in all_coins[:5]:
-        price = get_live_price(coin)
-        print(f"Coin: {coin} | Current Price: ${price}")
-else:
-    print("No coins found. Please check connection.")
+# Find the coin with the biggest price drop (Best to buy low)
+all_data.sort(key=lambda x: x['change'])
+best_opportunity = all_data[0] # The one with the highest negative percentage
+
+print(f"Scanning {len(all_data)} USDT pairs...")
+print("-" * 30)
+print(f"Top Opportunity Found!")
+print(f"Coin: {best_opportunity['symbol']}")
+print(f"Current Price: ${best_opportunity['price']}")
+print(f"24h Change: {best_opportunity['change']}%")
+print("-" * 30)
+
 
