@@ -56,55 +56,6 @@ st.sidebar.title("💳 Virtual Wallet")
 st.sidebar.metric("Available Balance", "$30.00", "+0.00%")
 st.sidebar.divider()
 selected_coin = st.sidebar.selectbox("Select Coin for Chart", ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "DOGEUSDT"])
-
-# Main Layout
-col1, col2 = st.columns([2, 1])
-
-with col1:
-    st.subheader(f"📊 Live Chart: {selected_coin}")
-    tradingview_html = f"""
-    <div class="tradingview-widget-container">
-        <div id="tradingview_chart"></div>
-        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-        <script type="text/javascript">
-        new TradingView.widget({{
-          "width": "100%", "height": 400, "symbol": "BINANCE:{selected_coin}",
-          "interval": "H", "timezone": "Etc/UTC", "theme": "dark", "style": "1",
-          "locale": "en", "toolbar_bg": "#f1f3f6", "enable_publishing": false,
-          "allow_symbol_change": true, "container_id": "tradingview_chart"
-        }});
-        </script>
-    </div>
-    """
-    components.html(tradingview_html, height=420)
-
-with col2:
-    st.subheader("🚀 Buy Signals")
-    market_df = get_market_data()
-    
-    if not market_df.empty:
-        # Sort to find coins with biggest drops
-        top_losers = market_df.sort_values(by='priceChangePercent').head(5)
-        for _, row in top_losers.iterrows():
-            rsi = get_rsi(row['symbol'])
-            # Show a card if RSI is relatively low
-            st.markdown(f"""
-            <div class="signal-card">
-                <h4>{row['symbol']}</h4>
-                <p>Price: ${float(row['lastPrice']):.4f}<br>
-                RSI: <b>{rsi}</b><br>
-                Change: {row['priceChangePercent']}%</p>
-            </div><br>""", unsafe_allow_html=True)
-    else:
-        st.warning("Market data currently unavailable. Refreshing...")
-
-st.divider()
-
-# Market Overview Table
-if not market_df.empty:
-    st.subheader("🔍 Market Overview")
-    display_df = market_df[['symbol', 'lastPrice', 'priceChangePercent']].copy()
-    display_df['lastPrice'] = display_df['lastPrice'].astype(float)
-    st.dataframe(display_df.sort_values(by='priceChangePercent'), use_container_width=True)
+=
 
 
