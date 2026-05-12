@@ -5,150 +5,144 @@ import plotly.graph_objects as go
 from datetime import datetime
 import time
 
-# --- Ultra Pro Page Setup ---
-st.set_page_config(page_title="KD AI ELITE TERMINAL", layout="wide", initial_sidebar_state="expanded")
+# --- Advanced Page Configuration ---
+st.set_page_config(page_title="KD AI QUANTUM TERMINAL", layout="wide", initial_sidebar_state="expanded")
 
-# --- image_10.png විලාසිතාවට අනුව CSS සැකසුම ---
+# --- Professional Cyber-Dark CSS (Inspired by image_10.png) ---
 st.markdown("""
     <style>
-    .main { background-color: #050508; color: #ffffff; }
+    .stApp { background-color: #050508; color: #ffffff; font-family: 'Segoe UI', sans-serif; }
     [data-testid="stSidebar"] { background-color: #0b0e14; border-right: 1px solid #1f2633; }
     
-    /* Top Bar Metrics */
+    /* Metric Card Styling */
     .metric-card { 
-        background: #0f111a; border: 1px solid #1a1e2e; 
-        border-radius: 12px; padding: 20px; text-align: center;
-        box-shadow: 0 4px 10px rgba(0, 209, 255, 0.1);
+        background: linear-gradient(145deg, #0f111a, #07080c); 
+        border: 1px solid #1a1e2e; border-radius: 12px; padding: 20px; text-align: center;
+        box-shadow: 0 4px 15px rgba(0, 209, 255, 0.05);
     }
-    .neon-blue { color: #00d1ff; font-weight: bold; font-size: 24px; }
-    .neon-green { color: #00ffa3; font-weight: bold; font-size: 24px; }
+    .neon-blue { color: #00d1ff; font-weight: bold; font-size: 26px; text-shadow: 0 0 10px rgba(0,209,255,0.5); }
+    .neon-green { color: #00ffa3; font-weight: bold; font-size: 26px; text-shadow: 0 0 10px rgba(0,255,163,0.5); }
     
-    /* Buttons */
-    .stButton>button { border-radius: 8px; font-weight: bold; height: 3em; transition: 0.3s; }
-    .start-btn { background-color: #00ffa3 !important; color: black !important; }
-    .kill-btn { background-color: #ff4b4b !important; color: white !important; }
+    /* Button Customization */
+    .stButton>button { border-radius: 6px; font-weight: 600; height: 3em; transition: 0.3s; width: 100%; }
+    .start-btn { background-color: #00ffa3 !important; color: #000 !important; border: none; }
+    .kill-btn { background-color: #ff4b4b !important; color: #fff !important; border: none; }
     
-    /* Trade Card */
+    /* Position Card */
     .trade-card { 
-        background-color: #161b22; padding: 15px; border-radius: 10px; 
-        border-left: 5px solid #00ffa3; margin-bottom: 10px;
+        background-color: #11141d; padding: 15px; border-radius: 10px; 
+        border-left: 5px solid #00ffa3; margin-bottom: 12px;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- Session State ---
+# --- State Management ---
 if 'balance' not in st.session_state: st.session_state.balance = 30.00
-if 'running' not in st.session_state: st.session_state.running = False
-if 'history' not in st.session_state: st.session_state.history = []
+if 'is_running' not in st.session_state: st.session_state.is_running = False
+if 'history' not in st.session_state: st.session_state.history = [30.00]
 
-# --- Sidebar (Profile & API) ---
+# --- Sidebar: User Profile & API Config ---
 with st.sidebar:
-    st.image("https://cryptologos.cc/logos/binance-coin-bnb-logo.png", width=60)
-    st.markdown("## KD AI ELITE v9.0")
-    st.markdown("---")
-    st.write("👤 Status: **VIP TRADER**")
-    st.write("🛠 Strategy: **High-Freq Machine-Gun**")
+    st.image("https://cryptologos.cc/logos/binance-coin-bnb-logo.png", width=50)
+    st.markdown("## KD AI TERMINAL v9.5")
+    st.write("Account Status: **VIP ELITE**")
     st.divider()
     
-    st.subheader("🔑 Connectivity")
-    st.text_input("Binance API Key", type="password", placeholder="Enter Key...")
-    st.text_input("Binance Secret Key", type="password", placeholder="Enter Secret...")
-    
+    st.subheader("Control Center")
+    if st.button("🚀 INITIATE START", type="primary"):
+        st.session_state.is_running = True
+    if st.button("🔴 EMERGENCY STOP"):
+        st.session_state.is_running = False
+        
     st.divider()
-    # ප්‍රධාන පාලන බොත්තම්
-    col_s1, col_s2 = st.columns(2)
-    with col_s1:
-        if st.button("🚀 START", key="start_main", use_container_width=True):
-            st.session_state.running = True
-    with col_s2:
-        if st.button("🛑 KILL", key="kill_main", use_container_width=True):
-            st.session_state.running = False
+    st.subheader("API Integration")
+    st.text_input("Binance API Key", type="password", placeholder="Paste Key Here")
+    st.text_input("Secret Key", type="password", placeholder="Paste Secret Here")
 
-# --- Top Header ---
+# --- Top Header Dashboard ---
 st.markdown("<h1 style='text-align: center;'>⚡ KD AI QUANTUM TRADING DECENTRALIZED</h1>", unsafe_allow_html=True)
 
-# Top row metrics
-m1, m2, m3, m4 = st.columns(4)
-with m1:
+# Summary Metrics Row
+col1, col2, col3, col4 = st.columns(4)
+with col1:
     st.markdown(f'<div class="metric-card"><caption>TOTAL EQUITY</caption><div class="neon-blue">${st.session_state.balance:.2f}</div></div>', unsafe_allow_html=True)
-with m2:
-    pnl = st.session_state.balance - 30.00
-    st.markdown(f'<div class="metric-card"><caption>NET PROFIT</caption><div class="neon-green">+${pnl:.2f}</div></div>', unsafe_allow_html=True)
-with m3:
-    st.markdown('<div class="metric-card"><caption>ACTIVE SCANNERS</caption><div style="font-size:24px;">324/324 PAIRS</div></div>', unsafe_allow_html=True)
-with m4:
-    status = '<span style="color:#00ffa3;">● ONLINE</span>' if st.session_state.running else '<span style="color:red;">● OFFLINE</span>'
-    st.markdown(f'<div class="metric-card"><caption>BOT STATUS</caption><div style="font-size:24px;">{status}</div></div>', unsafe_allow_html=True)
+with col2:
+    net_pnl = st.session_state.balance - 30.00
+    st.markdown(f'<div class="metric-card"><caption>NET PROFIT</caption><div class="neon-green">+${net_pnl:.2f}</div></div>', unsafe_allow_html=True)
+with col3:
+    st.markdown('<div class="metric-card"><caption>ACTIVE SCANNERS</caption><div style="font-size:24px;">324 PAIRS</div></div>', unsafe_allow_html=True)
+with col4:
+    status_text = '<span style="color:#00ffa3;">● ACTIVE</span>' if st.session_state.is_running else '<span style="color:#ff4b4b;">● IDLE</span>'
+    st.markdown(f'<div class="metric-card"><caption>SYSTEM STATUS</caption><div style="font-size:24px;">{status_text}</div></div>', unsafe_allow_html=True)
 
 st.divider()
 
-# --- Main Dashboard Body ---
-left_col, right_col = st.columns([2.5, 1.5])
+# --- Main Analytics Body ---
+left, right = st.columns([2.5, 1.5])
 
-with left_col:
-    # 1. Growth Chart
-    st.subheader("📈 Quantum Profit Visualization")
-    points = np.linspace(0, 10, len(st.session_state.history) if len(st.session_state.history) > 0 else 10)
-    y_vals = st.session_state.history if len(st.session_state.history) > 0 else [30]*10
-    fig = go.Figure(data=go.Scatter(y=y_vals, mode='lines', line=dict(color='#00d1ff', width=4), fill='tozeroy'))
-    fig.update_layout(template="plotly_dark", height=350, margin=dict(l=0,r=0,t=0,b=0))
+with left:
+    # 1. Real-time Equity Chart
+    st.subheader("📈 Performance Visualization")
+    fig = go.Figure(data=go.Scatter(y=st.session_state.history, mode='lines+markers', line=dict(color='#00d1ff', width=3), fill='tozeroy'))
+    fig.update_layout(template="plotly_dark", height=380, margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
     st.plotly_chart(fig, use_container_width=True)
 
-    # 2. Multi-Coin Scanner
-    st.subheader("🔍 Decentralized Market Update")
-    coins = ["BTC", "ETH", "SOL", "XRP", "BNB", "ADA", "DOGE", "DOT"]
+    # 2. Market Scanner Data
+    st.subheader("🔍 Decentralized Market Scanner (300+ Pairs)")
+    assets = ["BTC", "ETH", "SOL", "XRP", "BNB", "ADA", "DOGE", "DOT", "MATIC", "LINK"]
     scan_df = pd.DataFrame({
-        "Asset": [f"{c}/USDT" for c in coins],
-        "AI Analysis": ["BULLISH", "SCALPING", "ENTRY DETECTED", "NEUTRAL", "STRONG BUY", "WAITING", "BULLISH", "SCALPING"],
-        "Confidence": [f"{np.random.randint(85, 99)}%" for _ in range(8)],
-        "Action": ["EXECUTING..." if st.session_state.running else "READY" for _ in range(8)]
+        "Asset Pair": [f"{a}/USDT" for a in assets],
+        "Signal": np.random.choice(["STRONG BUY", "SCALPING", "ENTRY DETECTED", "NEUTRAL"], 10),
+        "AI Score": [f"{np.random.randint(88, 99)}%" for _ in range(10)],
+        "Execution": ["PROCESSING" if st.session_state.is_running else "IDLE" for _ in range(10)]
     })
-    st.table(scan_df)
+    st.dataframe(scan_df, use_container_width=True)
 
-with right_col:
-    # 3. Machine-Gun History (History Section)
+with right:
+    # 3. Trade Execution History
     st.subheader("📜 Live Trade History")
     
-    if st.session_state.running:
-        # Simulation Logic: ඩොලර් 30 ආරක්ෂා කරගෙන ට්‍රේඩ් දමන ආකාරය
-        new_gain = round(np.random.uniform(0.05, 0.35), 2)
-        st.session_state.balance += new_gain
+    if st.session_state.is_running:
+        # Machine-Gun Simulation Logic
+        gain = round(np.random.uniform(0.12, 0.45), 2)
+        fee = 0.02
+        net = gain - fee
+        st.session_state.balance += net
         st.session_state.history.append(st.session_state.balance)
         
-        # Display current execution
         st.markdown(f"""
             <div class="trade-card">
-                <b style="color:#00d1ff;">LONG: {np.random.choice(coins)}/USDT 20x</b><br>
-                <small>Entry: Market | Status: <b>Closed (Auto-TP)</b></small><br>
-                <span class="neon-green">Net Profit: +${new_gain:.2f}</span>
+                <b style="color:#00d1ff;">LONG: {np.random.choice(assets)}/USDT 20x</b><br>
+                <small>Mode: AI-Auto Scalp | Status: <b>Closed (TP Hit)</b></small><br>
+                <span class="neon-green">Net Realized: +${net:.2f}</span>
             </div>
         """, unsafe_allow_html=True)
         
-        # පරණ ට්‍රේඩ් හිස්ටෝරිය
-        for i in range(2):
+        # Historical Trades
+        for _ in range(2):
             st.markdown(f"""
-                <div style="background:#0f111a; padding:10px; border-radius:8px; margin-bottom:5px; border-left:3px solid #30363d;">
-                    <small>Completed Trade: {np.random.choice(coins)}/USDT | Profit: +$0.18</small>
+                <div style="background:#0f111a; padding:10px; border-radius:8px; margin-bottom:6px; border-left:3px solid #30363d;">
+                    <small>Completed: {np.random.choice(assets)}/USDT | Profit: +$0.22</small>
                 </div>
             """, unsafe_allow_html=True)
     else:
-        st.info("System is IDLE. Click START to initiate Machine-Gun mode.")
+        st.info("System Offline. Click START to begin automated trading.")
 
     st.divider()
-    # Emergency Kill Switch (ප්‍රධාන තැනක)
-    if st.button("🔴 EMERGENCY KILL ALL TRADES", use_container_width=True):
-        st.session_state.running = False
-        st.error("All positions terminated and secured.")
+    # Big Emergency Button
+    if st.button("🔥 EMERGENCY KILL ALL TRADES", use_container_width=True):
+        st.session_state.is_running = False
+        st.warning("All operations halted. Positions secured.")
 
-# --- Intelligence Logs ---
+# --- System Intelligence Logs ---
 st.write("---")
-with st.expander("🛠 AI Intelligence & Binance Cloud Logs", expanded=True):
+with st.expander("🛠 AI Intelligence & Execution Logs", expanded=True):
     st.code(f"""
-    [{datetime.now().strftime('%H:%M:%S')}] - API Handshake Successful.
-    [{datetime.now().strftime('%H:%M:%S')}] - Scanning 324 Pairs for Sniper Entry...
-    [{datetime.now().strftime('%H:%M:%S')}] - Signal Locked: 94% Probability on {np.random.choice(coins)}/USDT
-    [{datetime.now().strftime('%H:%M:%S')}] - Machine-Gun Execution: Position Opened.
-    [{datetime.now().strftime('%H:%M:%S')}] - Profit Secured. Position Closed by Auto-Bot.
+    [{datetime.now().strftime('%H:%M:%S')}] SCANNING 324 BINANCE USDT PAIRS...
+    [{datetime.now().strftime('%H:%M:%S')}] SNIPER LOGIC: SIGNAL DETECTED ON {np.random.choice(assets)}/USDT
+    [{datetime.now().strftime('%H:%M:%S')}] MACHINE-GUN EXECUTION: ORDER PLACED (MARGIN $1.20)
+    [{datetime.now().strftime('%H:%M:%S')}] TAKE PROFIT TRIGGERED: POSITION CLOSED AUTOMATICALLY
+    [{datetime.now().strftime('%H:%M:%S')}] NET PROFIT SECURED AFTER BINANCE TRADING FEES.
     """)
 
-st.caption("KD AI ELITE TERMINAL | 2026 OFFICIAL PRO VERSION")
+st.caption("KD AI QUANTUM TERMINAL | OFFICIAL PRO EDITION | 2026")
