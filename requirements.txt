@@ -1,15 +1,6 @@
-# RUN THIS SCRIPT FIRST TO CREATE THE REQUIREMENTS FILE
-libs = [
-    "streamlit",
-    "pandas",
-    "numpy",
-    "plotly",
-    "requests",
-    "python-binance",
-    "pandas_ta"
-]
-
-with open("requirements.txt", "w", encoding="utf-8") as f:
-    for lib in libs:
-        f.write(lib + "\n")
-print("✅ requirements.txt generated successfully.")
+streamlit
+pandas
+numpy
+plotly
+python-binance
+pandas_ta
