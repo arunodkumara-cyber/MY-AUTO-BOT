@@ -3,3 +3,5 @@ pandas
 numpy
 plotly
 pandas-ta
+llvmlite==0.43.0
+
