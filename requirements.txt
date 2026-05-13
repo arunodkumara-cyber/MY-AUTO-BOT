@@ -4,4 +4,6 @@ numpy
 plotly
 qrcode
 Pillow
+streamlit-webrtc
+
 
