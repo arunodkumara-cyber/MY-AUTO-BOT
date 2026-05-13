@@ -5,5 +5,5 @@ plotly
 qrcode
 Pillow
 streamlit-webrtc
+requests
 tornado
-
