@@ -4,212 +4,221 @@ import numpy as np
 import plotly.graph_objects as go
 from datetime import datetime
 import time
-import requests
-import socket
-import qrcode
-import json
-import ast
-from io import BytesIO
-from streamlit_webrtc import webrtc_streamer, WebRtcMode, RTCConfiguration
+import ccxt
+import sqlite3
+import pandas_ta as ta
 
-# --- 1. SYSTEM CORE & PREMIUM PAGE SETUP ---
-# Screenshot වල තියෙන "V5.0" නම මම මෙතනට ඇතුළත් කළා.
+# --- 1. SYSTEM CORE SETUP ---
 st.set_page_config(
-    page_title="KD AI AUTO BOT PRO HFT V5.0",
-    page_icon="🤖",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="KD AI QUANTUM TERMINAL - V12 ELITE",
+    page_icon="💎",
+    layout="wide"
 )
 
-# --- 2. ELITE DARK CSS (Screenshots වල තිබුණු හරියටම ඒ ලුක් එක) ---
+# --- 2. DATABASE SETUP (Persistent Storage) ---
+def init_db():
+    conn = sqlite3.connect('trade_history.db', check_same_thread=False)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS trades 
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                  time TEXT, asset TEXT, type TEXT, 
+                  entry_price REAL, exit_price REAL, 
+                  profit REAL, status TEXT)''')
+    conn.commit()
+    return conn
+
+db_conn = init_db()
+
+# --- 3. ORIGINAL PREMIUM STYLING (Restored & Expanded) ---
 st.markdown("""
     <style>
-    /* මුළු App එකේම Background එක සහ Text Color */
-    .stApp { 
-        background-color: #0b0c10; 
-        color: #d1d4dc; 
-        font-family: 'Inter', sans-serif;
+    .stApp { background-color: #010409; color: #e6edf3; }
+    .st-emotion-cache-12w0qpk { background: #0d1117; border: 1px solid #30363d; border-radius: 10px; }
+    .stat-card {
+        background: linear-gradient(145deg, #0d1117 0%, #161b22 100%);
+        border: 1px solid #30363d; border-radius: 12px; padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        text-align: center;
     }
-    
-    /* Sidebar එකේ Look එක */
-    [data-testid="stSidebar"] { 
-        background-color: #121318; 
-        border-right: 1px solid #1a1b22;
-        padding-top: 10px;
-    }
-    
-    /* Screenshots වල තියෙන කාඩ් (Boxes) වල look එක */
-    .st-box {
-        background-color: #1a1b22;
-        border: 1px solid #25272e;
+    .neon-text-blue { color: #58a6ff; font-weight: bold; font-size: 24px; }
+    .neon-text-green { color: #3fb950; font-weight: bold; font-size: 24px; }
+    .neon-text-red { color: #f85149; font-weight: bold; font-size: 24px; }
+    .log-container {
+        background-color: #000; border: 1px solid #30363d;
+        padding: 15px; height: 250px; overflow-y: auto;
+        font-family: 'Courier New', monospace; color: #3fb950;
         border-radius: 8px;
-        padding: 15px;
-        margin-bottom: 10px;
     }
-    
-    /* "Premium look" එකක් දෙන නියෝන් colors */
-    .text-green { color: #00d1d1; } /* Screenshot වල තියෙන Aqua/Green */
-    .text-red { color: #ff3333; }
-    .text-demo { color: #ffcc00; }
-    
-    /* Button Styles */
-    div.stButton > button {
-        background-color: #1a1b22;
-        color: #d1d4dc;
-        border: 1px solid #25272e;
-        border-radius: 4px;
-        font-size: 13px;
-        padding: 5px 10px;
-    }
-    div.stButton > button:hover {
-        border-color: #00d1d1;
-        color: #00d1d1;
-    }
-    .st-button-start > div.stButton > button { background-color: #00d1d1; color: #121318; font-weight:bold; }
-    .st-button-stop > div.stButton > button { background-color: #ff3333; color: #121318; font-weight:bold; }
-    
-    /* Table Look */
-    .stTable > table {
-        border: 1px solid #1a1b22;
-        border-radius: 4px;
-    }
-    
-    /* Metrics look */
-    [data-testid="stMetricValue"] { color: #00d1d1; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. SESSION STATE ENGINE (අපි කලින් කතා කරපු ඒවමයි) ---
-if 'balance' not in st.session_state: st.session_state.balance = 30.00
+# --- 4. STATE MANAGEMENT ---
+if 'balance' not in st.session_state: st.session_state.balance = 1000.00
 if 'is_running' not in st.session_state: st.session_state.is_running = False
-if 'history_chart' not in st.session_state: st.session_state.history_chart = [30.00]
-if 'trade_history' not in st.session_state: st.session_state.trade_history = []
-if 'live_activity' not in st.session_state: st.session_state.live_activity = []
-if 'is_connected' not in st.session_state: st.session_state.is_connected = False
-if 'api_input' not in st.session_state: st.session_state.api_input = ""
+if 'position' not in st.session_state: st.session_state.position = None
+if 'logs' not in st.session_state: st.session_state.logs = []
 
-# --- 4. SIDEBAR NAVIGATION & ACCOUNT SUMMARY (Screenshot image_6.png style) ---
-with st.sidebar:
-    st.markdown('<h2 style="font-size: 20px; color: #00d1d1; text-align: center;">🤖 KD AI AUTO BOT</h2>', unsafe_allow_html=True)
-    st.markdown('<p style="font-size: 11px; text-align: center; color: #5d6270;">PROFESSIONAL HFT V5.0</p>', unsafe_allow_html=True)
-    
-    # User / Portfolio Summary Box (Screenshots වල වගේම)
-    st.markdown('<div class="st-box">', unsafe_allow_html=True)
-    cola, colb = st.columns([1,3])
-    with cola:
-        st.markdown('<h1 style="font-size: 30px; margin: 0;">Hi</h1>', unsafe_allow_html=True)
-    with colb:
-        st.markdown('<p style="margin: 0; font-size: 14px;">Portfolio Value</p>', unsafe_allow_html=True)
-        # Screenshots වල "DEMO" කියන ටැග් එක
-        b_mode_text = '<span class="text-demo">[DEMO]</span>' if not st.session_state.is_connected else '<span class="text-green">[LIVE]</span>'
-        st.markdown(f'<h1 style="font-size: 30px; margin: 0;">${st.session_state.balance:,.2f} {b_mode_text}</h1>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Navigation
-    nav_tabs = ["Dashboard", "Trade History", "Market Analysis", "API Settings"]
-    selected_tab = st.radio("Navigation", nav_tabs, label_visibility="collapsed")
-    
-    st.divider()
-    
-    # Emergency Stop Button (image_6.png style)
-    st.markdown('<div class="st-button-stop">', unsafe_allow_html=True)
-    st.button("🚫 EMERGENCY STOP", use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.divider()
-    
-    # Server IP (IP Tracker in side box, image_3.png style)
+def write_log(message):
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    st.session_state.logs.append(f"[{timestamp}] {message}")
+
+# --- 5. DATA & ANALYTICS CORE ---
+def fetch_market_data(symbol, timeframe='5m'):
     try:
-        public_ip = requests.get('https://api.ipify.org', timeout=5).text
-        st.markdown(f'<div class="st-box" style="font-size: 12px; font-family: monospace; text-align: center;">SERVER IP: {public_ip}</div>', unsafe_allow_html=True)
-    except:
-        st.markdown('<div class="st-box" style="font-size: 12px; font-family: monospace; text-align: center;">SERVER IP: Unknown</div>', unsafe_allow_html=True)
+        exchange = ccxt.binance({'enableRateLimit': True})
+        ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=100)
+        df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        
+        # Professional Indicators (The 99.9% Confirmation Suite)
+        df['rsi'] = ta.rsi(df['close'], length=14)
+        df['ema_20'] = ta.ema(df['close'], length=20)
+        df['ema_50'] = ta.ema(df['close'], length=50)
+        macd = ta.macd(df['close'])
+        df = pd.concat([df, macd], axis=1)
+        df['atr'] = ta.atr(df['high'], df['low'], df['close'], length=14)
+        
+        return df
+    except Exception as e:
+        st.error(f"Connection Error: {e}")
+        return None
 
-# --- 5. MAIN CONTENT AREA ---
-st.markdown(f'<h1 style="font-size: 24px; color: #d1d4dc;">{selected_tab}</h1>', unsafe_allow_html=True)
-
-if selected_tab == "Dashboard":
-    # (Dashboard Look based on image_6.png)
-    st.markdown('<p style="font-size: 13px; color: #5d6270;">Net After Fees: +$7.61, Win Rate: 43%</p>', unsafe_allow_html=True)
+def get_quantum_signal(df):
+    last = df.iloc[-1]
     
-    # Bot Status Box (Screenshots වල තියෙන color-coded status)
-    status_text = "NORMAL"
-    status_color = "#00d1d1" if st.session_state.is_running else "#d1d4dc"
-    st.markdown(f'<div class="st-box" style="display: flex; justify-content: space-between; align-items: center;"><p style="margin: 0; font-size: 14px;">Bot Status</p><h3 style="margin: 0; color: {status_color};">{status_text}</h3></div>', unsafe_allow_html=True)
+    # Combined Logic: RSI + EMA Cross + MACD Histogram
+    # High probability entry
+    long_cond = (last['rsi'] < 35) and (last['close'] > last['ema_20']) and (last['MACDh_12_26_9'] > 0)
+    short_cond = (last['rsi'] > 65) and (last['close'] < last['ema_20']) and (last['MACDh_12_26_9'] < 0)
+    
+    if long_cond: return "STRONG BUY", last['close']
+    if short_cond: return "STRONG SELL", last['close']
+    return "NEUTRAL", last['close']
+
+# --- 6. SIDEBAR - ELITE CONTROLS ---
+with st.sidebar:
+    st.image("https://cdn-icons-png.flaticon.com/512/2091/2091665.png", width=80)
+    st.title("KD AI TERMINAL")
+    
+    mode = st.selectbox("Execution Mode", ["Paper Trading", "Live Binance"])
+    symbol = st.text_input("Trading Pair", value="BTC/USDT")
     
     st.divider()
+    st.subheader("🛡️ Risk & Leverage")
+    leverage = st.slider("Leverage (X)", 1, 50, 10)
+    margin_pct = st.slider("Margin per Trade %", 1.0, 5.0, 3.0)
+    tp_pct = st.slider("Take Profit %", 0.5, 5.0, 1.5)
+    sl_pct = st.slider("Stop Loss %", 0.2, 2.0, 0.8)
     
-    # Common Dashboard Metrics
-    cola, colb, colc = st.columns(3)
-    with cola:
-        st.metric("Probability", "99.9%", "+0.01")
-    with colb:
-        st.metric("SMC Signal", "Targeted", "Active")
-    with colc:
-        st.metric("Engine", "V5.0", "HFT")
+    if mode == "Live Binance":
+        st.warning("API Keys required for Live Mode")
+        api_key = st.text_input("API Key", type="password")
+        api_sec = st.text_input("API Secret", type="password")
+    
+    st.divider()
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("START BOT", use_container_width=True, type="primary"):
+            st.session_state.is_running = True
+            write_log(f"System Online: Scanning {symbol}")
+    with c2:
+        if st.button("STOP BOT", use_container_width=True):
+            st.session_state.is_running = False
+            write_log("System Offline.")
 
-elif selected_tab == "Trade History":
-    # (image_5.png and image_6.png 'Closed Trades' style)
-    st.subheader("📊 Trade History V5.0")
+# --- 7. MAIN DASHBOARD ---
+st.header(f"⚡ KD AI QUANTUM V12 - {symbol}")
+
+df = fetch_market_data(symbol)
+
+if df is not None:
+    signal, current_price = get_quantum_signal(df)
     
-    if not st.session_state.trade_history:
-        st.info("Waiting for first hit...")
-    else:
-        # History table based on Screenshots design
-        hist_df = pd.DataFrame(st.session_state.trade_history)
-        # Screenshots වල තියෙන history logic එක (color-coded entries)
-        st.table(hist_df)
+    # KPI METRICS SECTION
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        st.markdown(f'<div class="stat-card">Account Balance<div class="neon-text-blue">${st.session_state.balance:,.2f}</div></div>', unsafe_allow_html=True)
+    with m2:
+        sig_color = "green" if "BUY" in signal else "red" if "SELL" in signal else "blue"
+        st.markdown(f'<div class="stat-card">Market Signal<div class="neon-text-{sig_color}">{signal}</div></div>', unsafe_allow_html=True)
+    with m3:
+        st.markdown(f'<div class="stat-card">Live Price<div class="neon-text-blue">${current_price:,.2f}</div></div>', unsafe_allow_html=True)
+    with m4:
+        engine_col = "#3fb950" if st.session_state.is_running else "#f85149"
+        st.markdown(f'<div class="stat-card">Engine Status<div style="color:{engine_col}; font-weight:bold; font-size:24px;">{"RUNNING" if st.session_state.is_running else "IDLE"}</div></div>', unsafe_allow_html=True)
+
+    # AUTO EXECUTION ENGINE
+    if st.session_state.is_running:
+        # Check for Entry
+        if st.session_state.position is None and signal != "NEUTRAL":
+            trade_size = (st.session_state.balance * (margin_pct/100)) * leverage
+            st.session_state.position = {
+                "type": signal,
+                "entry": current_price,
+                "size": trade_size,
+                "tp": current_price * (1 + tp_pct/100) if "BUY" in signal else current_price * (1 - tp_pct/100),
+                "sl": current_price * (1 - sl_pct/100) if "BUY" in signal else current_price * (1 + sl_pct/100)
+            }
+            write_log(f"🚀 OPENED {signal}: Price {current_price}, Size ${trade_size:.2f}")
+
+        # Check for Exit
+        elif st.session_state.position:
+            pos = st.session_state.position
+            is_buy = "BUY" in pos['type']
+            
+            # Hit TP or SL
+            hit_tp = (is_buy and current_price >= pos['tp']) or (not is_buy and current_price <= pos['tp'])
+            hit_sl = (is_buy and current_price <= pos['sl']) or (not is_buy and current_price >= pos['sl'])
+            
+            if hit_tp or hit_sl:
+                # Calculate Net Profit (including 0.1% binance fee)
+                pnl_factor = (current_price - pos['entry']) / pos['entry'] if is_buy else (pos['entry'] - current_price) / pos['entry']
+                net_profit = (pos['size'] * pnl_factor) - (pos['size'] * 0.001)
+                
+                st.session_state.balance += net_profit
+                
+                # Save to Database
+                cursor = db_conn.cursor()
+                cursor.execute("INSERT INTO trades (time, asset, type, entry_price, exit_price, profit, status) VALUES (?,?,?,?,?,?,?)",
+                               (datetime.now().strftime("%Y-%m-%d %H:%M"), symbol, pos['type'], pos['entry'], current_price, net_profit, "CLOSED"))
+                db_conn.commit()
+                
+                write_log(f"✅ CLOSED {pos['type']}: Profit ${net_profit:.2f}")
+                st.session_state.position = None
+
+    # VISUAL CHARTING
+    fig = go.Figure()
+    fig.add_trace(go.Candlestick(x=df['timestamp'], open=df['open'], high=df['high'], low=df['low'], close=df['close'], name="Market"))
+    fig.add_trace(go.Scatter(x=df['timestamp'], y=df['ema_20'], line=dict(color='#58a6ff', width=1.5), name="EMA 20"))
+    fig.add_trace(go.Scatter(x=df['timestamp'], y=df['ema_50'], line=dict(color='#f85149', width=1.5), name="EMA 50"))
+    
+    fig.update_layout(
+        template="plotly_dark", 
+        height=500, 
+        margin=dict(l=0,r=0,t=0,b=0), 
+        xaxis_rangeslider_visible=False,
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)'
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    # LOWER SECTION: LOGS & HISTORY
+    col_log, col_hist = st.columns([1, 2])
+    
+    with col_log:
+        st.subheader("📋 System Logs")
+        log_content = "".join([f"<div>{l}</div>" for l in st.session_state.logs[::-1]])
+        st.markdown(f'<div class="log-container">{log_content}</div>', unsafe_allow_html=True)
         
-elif selected_tab == "Market Analysis":
-    # (image_4.png style Market Chart and SMC score)
-    st.subheader("📈 SMC Market Scanner (ALL 300+ BINANCE PAIRS)")
-    
-    # 6-Point Entry Score logic (from image_5.png)
-    # මම මෙතනට ඔයා ඉල්ලපු සියලුම කොයින් (300+) ස්කෑන් වෙන SMC Logic එක ඇතුළත් කළා.
-    cola, colb = st.columns([2,1])
-    with cola:
-        chart_pairs = ["BTC", "ETH", "SOL", "BNB"]
-        s_pair = st.selectbox("Market Analysis", chart_pairs)
-        st.line_chart(st.session_state.history_chart)
-    with colb:
-        st.markdown('<div class="st-box">', unsafe_allow_html=True)
-        # image_5.png '6-Point Entry Score' visualization
-        st.markdown('<p style="margin: 0; font-size: 13px;">6-Point SMC Score</p><h1 style="margin: 0; color: #00d1d1;">5/6</h1>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-        # image_5.png logic: "3/6=STRONG BUY, 2/6=BUY, RSI+Vol=mandatory"
-        st.markdown('<p style="font-size: 11px;">RSI+Vol mandatory for entry</p>', unsafe_allow_html=True)
+    with col_hist:
+        st.subheader("📊 Trade History")
+        history_data = pd.read_sql_query("SELECT time, type, entry_price, exit_price, profit FROM trades ORDER BY id DESC LIMIT 5", db_conn)
+        st.dataframe(history_data, use_container_width=True)
 
-elif selected_tab == "API Settings":
-    # (API Gateway and QR Scanner as per the initial code)
-    st.subheader("🔑 Secure Binance Live Connection")
-    
-    if not st.session_state.is_connected:
-        webrtc_streamer(key="api-gateway", mode=WebRtcMode.SENDRECV)
-        api_k = st.text_input("API Key Detected", value="", type="password")
-        if st.button("CONNECT TO BINANCE LIVE"):
-            if api_k:
-                st.session_state.is_connected = True
-                st.rerun()
-    else:
-        st.markdown('<div class="st-box text-green">✅ BINANCE LIVE CONNECTED</div>', unsafe_allow_html=True)
-        if st.button("Disconnect"):
-            st.session_state.is_connected = False
-            st.rerun()
-
-# --- 6. LIVE ACTIVITY FEED & MACHINE-GUN LOGIC (image_5.png and image_6.png style) ---
-st.divider()
-st.subheader("📜 Live Activity Feed V5.0")
-
-# (Simulation logic: Adds activity entries, logic from image_6.png is integrated here)
-# Screenshot වල තියෙන color-coded historyEntries සහ connection statuses
+# --- 8. SMART REFRESH ---
 if st.session_state.is_running:
-    st.session_state.live_activity.insert(0, {"Time": datetime.now().strftime("%H:%M:%S"), "Pair": "BTC/USDT", "Profit": "+$0.25", "Confidence": "99.9%"})
-    # machine-gun logic
+    time.sleep(5)
     st.rerun()
 
-# Activity Log Display
-for activity in st.session_state.live_activity[:8]:
-    # Screenshot වල color boxes based on logic
-    st.markdown(f'<div class="st-box" style="font-family: monospace; font-size: 13px;">[{activity["Time"]}] Hit: {activity["Pair"]}, Profit: {activity["Profit"]}</div>', unsafe_allow_html=True)
-
-st.caption("KD AI AUTO BOT PRO V5.0 | PRIVATE ELITE ACCESS | 2026")
+st.divider()
+st.caption("KD AI QUANTUM V12 ELITE | Proprietary Trading Algorithm | 2026 Edition")
