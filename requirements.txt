@@ -2,8 +2,6 @@ streamlit
 pandas
 numpy
 plotly
-qrcode
-Pillow
-streamlit-webrtc
-requests
-tornado
+ccxt
+pandas_ta
+
